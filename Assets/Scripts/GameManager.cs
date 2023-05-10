@@ -28,6 +28,10 @@ public class GameManager : MonoBehaviour
 
     private void NewRound()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        MenuPrincipalManager.MenuAtivo = "GameOver";
+
+        SceneManager.LoadScene("MenuInicial");
+
+        //SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }
