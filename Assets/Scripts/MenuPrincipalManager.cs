@@ -14,7 +14,7 @@ public class MenuPrincipalManager : MonoBehaviour
 
     private void Start()
     {
-        MenuAtivo = MenuAtivo ?? "MenuInicial";
+        MenuAtivo ??= "MenuInicial";
         AlterarMenu();
         Debug.Log(MenuAtivo);
     }
