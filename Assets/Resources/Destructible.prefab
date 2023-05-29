@@ -153,9 +153,9 @@ MonoBehaviour:
   destructionTime: 0.9
   itemSpawnChance: 0.5
   spawnableItems:
-  - {fileID: 3153123838963661476, guid: a959b0d0640894c49b75cbcb6102b784, type: 3}
-  - {fileID: 1865713870541826675, guid: 329356a640709e148a6129e9f8403af0, type: 3}
-  - {fileID: 1547360905590104472, guid: a2386bd494f496f45b9ef7867499f496, type: 3}
+  - ItemBlastRadius
+  - ItemExtraBomb
+  - ItemSpeedIncrease
 --- !u!114 &-4672333783985054849
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -174,7 +174,8 @@ MonoBehaviour:
   Synchronization: 3
   OwnershipTransfer: 0
   observableSearch: 0
-  ObservedComponents: []
+  ObservedComponents:
+  - {fileID: 0}
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0

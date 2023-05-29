@@ -30,20 +30,21 @@ public class GestorDeRede : MonoBehaviourPunCallbacks
         Debug.Log("Conectado com sucesso");
     }
 
-    public void CriarSala(string nomeSala)
+    public override void OnJoinRandomFailed(short returnCode, string message)
     {
-        var criou = PhotonNetwork.CreateRoom(nomeSala);
-        Debug.Log("Criou: "+criou);
+        Debug.Log("PUN Basics Tutorial/Launcher:OnJoinRandomFailed() was called by PUN. No random room available, so we create one.\nCalling: PhotonNetwork.CreateRoom");
+
+        PhotonNetwork.CreateRoom(null, new RoomOptions { MaxPlayers = 4 }, TypedLobby.Default);
     }
 
-    public void EntrarSala(string nomeSala)
-    {
-        PhotonNetwork.JoinRoom(nomeSala);
-    }
+    //public void EntrarSala()
+    //{
+    //    PhotonNetwork.JoinOrCreateRoom("room", new RoomOptions { MaxPlayers = 4 }, TypedLobby.Default);
+    //}
 
     public void EntrarSala()
     {
-        PhotonNetwork.JoinOrCreateRoom("room", new RoomOptions { MaxPlayers = 4 }, TypedLobby.Default);
+        PhotonNetwork.JoinRandomRoom();
     }
 
     public void SairSala()
@@ -51,9 +52,19 @@ public class GestorDeRede : MonoBehaviourPunCallbacks
         PhotonNetwork.LeaveRoom();
     }
 
+    public void EsconderSala()
+    {
+        PhotonNetwork.CurrentRoom.IsVisible = false;
+    }
+
     public void MudaNick(string nickname)
     {
         PhotonNetwork.NickName = nickname;
+    }
+
+    public string BuscarNick()
+    {
+        return  PhotonNetwork.NickName;
     }
 
     public string ObterListaDeJogadores()
@@ -64,6 +75,11 @@ public class GestorDeRede : MonoBehaviourPunCallbacks
             lista += player.NickName + "\n";
         }
         return lista;
+    }
+
+    public int QuantidadeDeJogadores()
+    {
+        return PhotonNetwork.PlayerList.Length;
     }
 
     public bool DonoDaSala()

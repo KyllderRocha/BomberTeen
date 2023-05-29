@@ -17,14 +17,19 @@ public class MenuPrincipalManager : MonoBehaviourPunCallbacks
     [SerializeField] private GameObject painelLobby;
     [SerializeField] private TextMeshProUGUI nickName;
     [SerializeField] private TextMeshProUGUI lobby;
+    [SerializeField] private int quantidadeDeJogadores;
 
     public static string MenuAtivo;
 
 
     private void Start()
     {
-        MenuAtivo ??= "Login";
-        //MenuAtivo ??= "MenuInicial";
+        var nick = GestorDeRede.instancia.BuscarNick();
+        if (string.IsNullOrEmpty(nick))
+            MenuAtivo = "Login";
+        else
+            MenuAtivo = "MenuInicial";
+
         AudioManager.instance.PlayMusic("Theme");
         AlterarMenu();
     }
@@ -32,6 +37,13 @@ public class MenuPrincipalManager : MonoBehaviourPunCallbacks
     public override void OnJoinedRoom()
     {
         AtualizarJogadores();
+
+        Debug.Log(GestorDeRede.instancia.QuantidadeDeJogadores());
+        if (GestorDeRede.instancia.QuantidadeDeJogadores() == quantidadeDeJogadores)
+        {
+            GestorDeRede.instancia.EsconderSala();
+            GestorDeRede.instancia.photonView.RPC("ComecaJogo", RpcTarget.All, nomeDoLevel);
+        }
     }
 
     public override void OnPlayerEnteredRoom(Photon.Realtime.Player newPlayer)
@@ -47,6 +59,7 @@ public class MenuPrincipalManager : MonoBehaviourPunCallbacks
     public void Jogar()
     {
         AudioManager.instance.PlaySFX("Click");
+        GestorDeRede.instancia.EsconderSala();
         GestorDeRede.instancia.photonView.RPC("ComecaJogo", RpcTarget.All, nomeDoLevel);
     }
 
@@ -106,8 +119,4 @@ public class MenuPrincipalManager : MonoBehaviourPunCallbacks
         Application.Quit();
     }
 
-    public void CriarSala()
-    {
-        GestorDeRede.instancia.CriarSala("Sala");
-    }
 }

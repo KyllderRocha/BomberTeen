@@ -18,6 +18,8 @@ public class GameManager : MonoBehaviourPunCallbacks
     public List<MovimentScript> Jogadores { get => _jogadores; private set => _jogadores = value; }
     private int _jogadoresEmJogo = 0;
 
+    private KeyCode inputKey = KeyCode.Escape;
+
     private void Awake()
     {
         if (Instancia != null & Instancia != this)
@@ -26,7 +28,7 @@ public class GameManager : MonoBehaviourPunCallbacks
             return;
         }
         Instancia = this;
-        DontDestroyOnLoad(gameObject);
+        //DontDestroyOnLoad(gameObject);
         _jogadores = new List<MovimentScript>();
         _spawnsUsados = new List<Transform>();
     }
@@ -36,32 +38,31 @@ public class GameManager : MonoBehaviourPunCallbacks
         photonView.RPC("AdicionaJogador", RpcTarget.AllBuffered);
     }
 
+    private void Update()
+    {
+        if (Input.GetKeyDown(inputKey))
+        {
+            MenuManager.instancia.Opcoes();
+        }
+    }
 
     public void CheckWinState()
     {
-        int aliveCount = 0;
-
-        foreach (GameObject player in players)
-        {
-            if (player.activeSelf)
-            {
-                aliveCount++;
-            }
-        }
+        int aliveCount = Jogadores.Where(x => x.isActiveAndEnabled).Count();
 
         if (aliveCount <= 1)
         {
-            Invoke(nameof(NewRound), 1.5f);
+            MenuManager.instancia.Win();
         }
 
     }
 
-    private void NewRound()
-    {
-        MenuPrincipalManager.MenuAtivo = "GameOver";
+    //private void NewRound()
+    //{
+    //    MenuPrincipalManager.MenuAtivo = "GameOver";
 
-        SceneManager.LoadScene("MenuInicial");
-    }
+    //    SceneManager.LoadScene("MenuInicial");
+    //}
 
     [PunRPC]
     private void AdicionaJogador()

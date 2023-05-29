@@ -125,5 +125,12 @@ public class MovimentScript : MonoBehaviourPunCallbacks
     {
         gameObject.SetActive(false);
         GameManager.Instancia.CheckWinState();
+        if (photonView.IsMine)
+            MenuManager.instancia.GameOver();
+    }
+
+    public override void OnPlayerLeftRoom(Player otherPlayer)
+    {
+        GameManager.Instancia.CheckWinState();
     }
 }

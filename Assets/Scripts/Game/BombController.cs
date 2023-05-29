@@ -29,6 +29,7 @@ public class BombController : MonoBehaviourPunCallbacks
     public float explosianDuration = 1f;
     public int explosionRadius = 1;
 
+
     [Header("Destructible")]
     public Tilemap destructibleTiles;
     public Destructible destructiblePrefab;
@@ -36,6 +37,13 @@ public class BombController : MonoBehaviourPunCallbacks
     public string _localizacao;
     public string _localizacaoExplosion;
     public string _localizacaoDestructible;
+
+    public MapGeneration mapGeneration;
+
+    private void Awake()
+    {
+        mapGeneration = GetComponent<MapGeneration>();
+    }
 
     private void OnEnable()
     {
@@ -105,10 +113,7 @@ public class BombController : MonoBehaviourPunCallbacks
 
         if (Physics2D.OverlapBox(position, Vector2.one / 2f, 0f, explosionLayerMask))
         {
-            Collider2D hitColliders = Physics2D.OverlapBox(position, Vector2.one / 2f, 0f, explosionLayerMask);
-            if (hitColliders.name == "Indestrutivel")
-                return;
-            ClearDestructible(hitColliders);
+            MapGeneration.Instancia.photonView.RPC("Destructible", RpcTarget.MasterClient, position.x, position.y);
             return;
         }
 
@@ -126,7 +131,7 @@ public class BombController : MonoBehaviourPunCallbacks
         explosion.photonView.RPC("SetDirection", RpcTarget.All, direction);
         explosion.photonView.RPC("DestroyAfter", RpcTarget.All, explosianDuration);
 
-        //Explode(position, direction, legth - 1);
+        Explode(position, direction, legth - 1);
     }
 
     private void ClearDestructible(Collider2D hitCollider)

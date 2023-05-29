@@ -234,6 +234,7 @@ MonoBehaviour:
   _localizacao: Bomb
   _localizacaoExplosion: Explosion
   _localizacaoDestructible: Destructible
+  mapGeneration: {fileID: 0}
 --- !u!114 &5493582629400186749
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -15,6 +15,7 @@ public class UIController : MonoBehaviour
 
     public void ToggleMusic()
     {
+        Debug.Log("Mudou");
         AudioManager.instance.ToggleMusic();
     }
 
