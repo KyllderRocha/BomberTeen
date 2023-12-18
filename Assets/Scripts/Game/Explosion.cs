@@ -17,12 +17,12 @@ public class Explosion : MonoBehaviourPunCallbacks
         end.enabled = renderer == "end";
     }
 
-    //public void SetActiveRenderer(AnimatedSpriteRenderer renderer)
-    //{
-    //    start.enabled = renderer == start;
-    //    middle.enabled = renderer == middle;
-    //    end.enabled = renderer == end;
-    //}
+    public void SetActiveAnimatedRenderer(AnimatedSpriteRenderer renderer)
+    {
+        start.enabled = renderer == start;
+        middle.enabled = renderer == middle;
+        end.enabled = renderer == end;
+    }
 
     [PunRPC]
     public void SetDirection(Vector2 direction)

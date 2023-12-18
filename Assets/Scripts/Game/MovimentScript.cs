@@ -19,8 +19,8 @@ public class MovimentScript : MonoBehaviourPunCallbacks
     public AnimatedSpriteRenderer spriteRendererDown; 
     public AnimatedSpriteRenderer spriteRendererLeft; 
     public AnimatedSpriteRenderer spriteRendererRight; 
-    public AnimatedSpriteRenderer spriteRendererDeath; 
-    private AnimatedSpriteRenderer activeSpriteRenderer;
+    public AnimatedSpriteRenderer spriteRendererDeath;
+    public AnimatedSpriteRenderer activeSpriteRenderer;
 
     private Player _photonPlayer;
     public int _id;

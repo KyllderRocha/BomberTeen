@@ -206,6 +206,7 @@ MonoBehaviour:
   spriteRendererLeft: {fileID: 5251112672125570076}
   spriteRendererRight: {fileID: 5251112672588944431}
   spriteRendererDeath: {fileID: 5251112672204388632}
+  activeSpriteRenderer: {fileID: 0}
   _id: 0
 --- !u!114 &5251112671239023574
 MonoBehaviour:
