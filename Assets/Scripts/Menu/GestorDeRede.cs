@@ -4,6 +4,15 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+/*
+ * GESTOR DE REDE (Networking Manager)
+ * -----------------------------------
+ * Este script herda de MonoBehaviourPunCallbacks, o que permite escutar eventos nativos do Photon PUN 2.
+ * Ele gerencia a conexão inicial ao servidor, criação e entrada de salas.
+ * 
+ * NOTA PARA UNITY 6: O Photon PUN 2 é suportado, mas é considerado legado. Em futuros projetos 
+ * nesta versão da Unity, considere migrar para o Photon Fusion ou Netcode for GameObjects (NGO).
+ */
 public class GestorDeRede : MonoBehaviourPunCallbacks
 {
     public static GestorDeRede instancia;

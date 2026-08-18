@@ -6,6 +6,15 @@ using UnityEngine;
 using UnityEngine.Tilemaps;
 using UnityEngine.UIElements;
 
+/*
+ * GERAÇÃO DE MAPA (Procedural Map Generation)
+ * -------------------------------------------
+ * Este script cuida da criação procedural de blocos destrutíveis.
+ * Ele demonstra um bom padrão de rede: Apenas o MasterClient (Dono da sala) decide onde os blocos nascem
+ * e então comunica aos outros jogadores via RPC ("SetDestructibleTile").
+ * 
+ * Correção do Bug de NullReference incluída na verificação da Célula.
+ */
 public class MapGeneration : MonoBehaviourPunCallbacks
 {
     public static MapGeneration Instancia { get; private set; }
