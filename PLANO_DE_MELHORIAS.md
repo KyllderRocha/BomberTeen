@@ -6,6 +6,14 @@ As tarefas abaixo estão classificadas por tipo e ordenadas por prioridade técn
 
 ---
 
+## 🌟 Pontos Fortes da Arquitetura Atual (Para Defesa no TCC)
+Antes de listar as melhorias, é vital reconhecer os acertos técnicos que já agregam muito valor ao projeto e provam o conhecimento do desenvolvedor:
+*   **Algoritmo de Dispersão (Recursividade):** A lógica no `BombController.cs` que utiliza chamadas recursivas e Raycasts para o fogo se propagar matematicamente e parar em obstáculos é robusta e bem implementada.
+*   **Otimização de Animação 2D:** O desenvolvimento customizado do `AnimatedSpriteRenderer.cs` (substituindo o pesado Animator nativo da Unity) demonstra excelente preocupação com uso otimizado de CPU e memória para jogos retrô.
+*   **Autoridade de Mapa (MasterClient):** A decisão de delegar a geração procedural das caixas (`MapGeneration.cs`) exclusivamente para o Host da sala e sincronizar os clientes via RPC é o padrão ouro de arquitetura para evitar dessincronização de telas.
+
+---
+
 ## 🔴 Alta Prioridade (Arquitetura, SOLID e Performance)
 
 ### 1. Refatoração do `MovimentScript.cs` (Falta de Single Responsibility Principle - SRP)
@@ -24,38 +32,46 @@ As tarefas abaixo estão classificadas por tipo e ordenadas por prioridade técn
 *   **Problema:** No método `Update` de `Bomb.cs` (que roda cerca de 60 vezes por segundo), estão ocorrendo instâncias constantes de classes pesadas (`new ContactFilter2D()` e `new Collider2D[10]`). Multiplique isso pelo número de bombas e haverá picos de travamentos (Garbage Collection Spikes).
 *   **Solução:** Mover essas alocações para as variáveis globais da classe e utilizar a função super-otimizada `Physics2D.OverlapBoxNonAlloc()`, reaproveitando a mesma lista na memória.
 
+### 4. Tratamento Seguro de Instanciamento de Rede (`Destructible.cs`)
+*   **Problema:** O método nativo `OnDestroy()` no script Destructible faz um `PhotonNetwork.Instantiate()` para dropar o Power-Up. O problema é que o `OnDestroy` também é chamado em massa pela Unity quando você fecha o jogo ou muda de cena, o que forçará instanciamentos de rede na hora de fechar a fase, gerando dezenas de mensagens de erro no console.
+*   **Solução:** Checar antes se a cena não está sendo desligada (`if (!gameObject.scene.isLoaded) return;`) ou retirar a lógica de drop do `OnDestroy`, atrelando a um método de "AutoDestruir" customizado.
+
 ---
 
 ## 🟠 Prioridade Média (Redes e Segurança)
 
-### 4. "Client Authority" vs "Server Authority"
+### 5. "Client Authority" vs "Server Authority"
 *   **Problema:** Em jogos multiplayer, nunca confie no cliente (jogador). Hoje, o script da máquina do jogador dita se ele morreu ou não, além de decidir se destruiu uma caixa no `BombController`. Isso abre brechas absurdas para hackers (cheaters) apenas mudarem as variáveis locais para não tomarem dano.
 *   **Solução:** Refatorar as validações críticas (morte, pegar itens, quebrar blocos) para serem decididas única e exclusivamente pelo **Master Client** (o "Servidor" da sala).
 
-### 5. Eliminação de "Magic Strings"
+### 6. Eliminação de "Magic Strings"
 *   **Problema:** O código está cheio de chamadas em texto, como `PlaySFX("Explosion")` ou `LayerMask.NameToLayer("Explosion")`. Se houver um simples erro de digitação, a engine compila perfeitamente, mas o jogo "crasha" misteriosamente quando o jogador joga a bomba.
 *   **Solução:** Criar uma classe estática (ex: `GameConstants.cs`) para armazenar todas as strings imutáveis. (Ex: `public const string LAYER_EXPLOSION = "Explosion";`).
 
-### 6. Atualização da Engine de Rede
+### 7. Atualização da Engine de Rede
 *   **Problema (Fim de Vida):** O Photon PUN 2 é excelente, mas infelizmente entrou na fase "Legado" de suporte oficial.
 *   **Solução:** Planejar a longo prazo uma migração gradual da lógica do `GestorDeRede` para os pacotes mais novos focados na Unity 6, como o **Photon Fusion** ou o sistema nativo **Unity Netcode for GameObjects (NGO)**.
+
+### 8. Máquina de Estados (Enums) para a Interface (UI)
+*   **Problema:** O `MenuPrincipalManager` gerencia as telas ativadas baseando-se em textos duros como `MenuAtivo = "Login";`. Isso é muito frágil e não previne erros de tipagem.
+*   **Solução:** Trocar a String por um Enum (`public enum MenuState { Login, Lobby, Opcoes, MenuInicial }`) e usar o comando `switch` em vez do emaranhado de `if`. Isso deixa o Menu muito mais sólido.
 
 ---
 
 ## 🟡 Prioridade Média (Gameplay e Finalizações)
 
-### 7. Inteligência Artificial (Desenvolvimento de Bots)
+### 9. Inteligência Artificial (Desenvolvimento de Bots)
 *   **Problema:** Não há implementação clara para completar as vagas caso uma sala online não encha com 4 jogadores reais.
 *   **Solução:**
     *   Habilitar o **NavMesh 2D** da Unity no mapa.
     *   Criar um componente `BotController` usando uma Máquina de Estados Finita (FSM).
     *   *Estados sugeridos:* **Buscar Caixa** (acha a parede destrutível mais próxima), **Atacar/Plantar** (solta a bomba), e o estado de **Fuga Segura** (mede o `explosionRadius` para fugir da fumaça).
 
-### 8. Gestão de Status via Scriptable Objects
+### 10. Gestão de Status via Scriptable Objects
 *   **Problema:** Valores como *Tempo do Pavio*, *Tamanho do Raio* e *Quantidade de Bombas* ficam presos a variáveis comuns dentro dos scripts, dificultando a equipe de Game Design tentar balancear o jogo.
 *   **Solução:** Transpor todos esses status (`bombFuseTime`, `speed`, etc.) para um **Scriptable Object**. Assim, todos os Power-Ups pegos via `ItemPickup.cs` apenas atualizam os status contidos dentro desse "arquivo de configuração", mantendo o código puro e flexível.
 
-### 9. Tratamento de Empates Múltiplos (Draw Condition)
+### 11. Tratamento de Empates Múltiplos (Draw Condition)
 *   **Problema:** O `CheckWinState()` confere se sobrou `1 ou menos` jogadores. No entanto, se o Jogador 1 e o Jogador 2 ficarem vivos para o final, e se explodirem simultaneamente, não existe fluxo visual de empate, podendo gerar soft-locks.
 *   **Solução:** Criar lógica para checar mortes síncronas num espaço de milissegundos e engatilhar a tela `DrawScreen` ao invés da tela padrão de Vitória.
 
@@ -63,10 +79,18 @@ As tarefas abaixo estão classificadas por tipo e ordenadas por prioridade técn
 
 ## 🟢 Prioridade Baixa (Polimento e Qualidade de Vida)
 
-### 10. Implementação de Namespaces e Asmdefs
+### 12. Implementação de Namespaces e Asmdefs
 *   **Problema:** A maioria dos scripts (`Bomb.cs`, `GameManager.cs`) habita o namespace principal do C# vazio. Em projetos de longo prazo, classes com nomes comuns vão começar a dar conflito (ex: criar outro tipo de bomba, ou outro gestor).
 *   **Solução:** Agrupar fisicamente usando as chaves `namespace BomberTeen.Core`, `namespace BomberTeen.Network`, etc. Além disso, definir arquivos `.asmdef` por pasta garantirá que quando você editar a UI, o código pesado do servidor não precisará ser recompilado pela Unity, poupando minutos diários.
 
-### 11. Novo Input System da Unity
+### 13. Novo Input System da Unity
 *   **Problema:** O movimento usa o sistema antigo (`Input.GetKey(KeyCode.W)`). Isso torna quase inviável jogar com controles de videogame nativamente sem lotar o código com centenas de "Ifs e Elses".
 *   **Solução:** Migrar os comandos (Up, Down, Left, Right e Plant) para o novo pacote **Input System**. Ele dissocia o código de "qual botão foi apertado", permitindo você dizer apenas: `Quando o jogador executar a Ação de Movimento, ande`, e a engine cuida se veio de um teclado, manete de Xbox ou celular touch.
+
+### 14. Migração para o "AudioMixer" da Unity
+*   **Problema:** Atualmente, o `AudioManager` controla o volume forçando a modificação da propriedade `.volume` de todas as `AudioSource` de uma vez.
+*   **Solução:** Utilizar o sistema nativo **AudioMixer**. Com ele, você diz para as AudioSources "qual grupo" (Master, SFX, BGM) elas pertencem e o Mixer lida com as matemáticas de DB (decibéis). Ele também permite adicionar efeitos maneiros, como abaixar a música e dar um efeito de *abafamento (Lowpass)* quando a tela de Pause (Opções) está aberta.
+
+### 15. Otimização do Tilemap (`MapGeneration.cs`)
+*   **Problema:** Para desenhar as caixas, o código roda dois loops (`for`) imbricados e checa `destructibleTiles.GetTile()` célula por célula. 
+*   **Solução:** A Unity possui a função `GetTilesBlock()` que captura todo o quadrado/mapa de uma única vez em uma Array, sendo muito mais performático para o carregamento da fase.

@@ -124,9 +124,13 @@ GameObject:
   - component: {fileID: 5251112671239023572}
   - component: {fileID: 5251112671239023573}
   - component: {fileID: 5251112671239023578}
-  - component: {fileID: 5251112671239023575}
   - component: {fileID: 5251112671239023574}
   - component: {fileID: 5493582629400186749}
+  - component: {fileID: 5251112671239023575}
+  - component: {fileID: -604389073568635173}
+  - component: {fileID: -9048520785402874778}
+  - component: {fileID: -1787296885289566643}
+  - component: {fileID: -2486004389523417778}
   m_Layer: 3
   m_Name: Player
   m_TagString: Player
@@ -217,29 +221,6 @@ CircleCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_Radius: 0.5
---- !u!114 &5251112671239023575
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5251112671239023579}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dc911f071c95f214daf7db4a84b21038, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  speed: 5
-  inputUp: 119
-  inputDown: 115
-  inputLeft: 97
-  inputRight: 100
-  spriteRendererUp: {fileID: 5251112671927425682}
-  spriteRendererDown: {fileID: 5251112671100285385}
-  spriteRendererLeft: {fileID: 5251112672125570076}
-  spriteRendererRight: {fileID: 5251112672588944431}
-  spriteRendererDeath: {fileID: 5251112672204388632}
-  _id: 0
 --- !u!114 &5251112671239023574
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -290,6 +271,77 @@ MonoBehaviour:
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
+--- !u!114 &5251112671239023575
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5251112671239023579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc911f071c95f214daf7db4a84b21038, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: 0
+--- !u!114 &-604389073568635173
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5251112671239023579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a6a420093e31cbfe8a6bb0c40f46880, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimatorSync
+  spriteRendererUp: {fileID: 5251112671927425682}
+  spriteRendererDown: {fileID: 5251112671100285385}
+  spriteRendererLeft: {fileID: 5251112672125570076}
+  spriteRendererRight: {fileID: 5251112672588944431}
+  spriteRendererDeath: {fileID: 5251112672204388632}
+--- !u!114 &-9048520785402874778
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5251112671239023579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 369e2b273a2fdf6b9846ae09023a584e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStatus
+--- !u!114 &-1787296885289566643
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5251112671239023579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9951686480edb7a14819dbacabe1ee40, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
+  speed: 5
+--- !u!114 &-2486004389523417778
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5251112671239023579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a59b2bd232a707fd9929284c26b164ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInput
+  keyUp: 119
+  keyDown: 115
+  keyLeft: 97
+  keyRight: 100
 --- !u!1 &5251112671927425681
 GameObject:
   m_ObjectHideFlags: 0

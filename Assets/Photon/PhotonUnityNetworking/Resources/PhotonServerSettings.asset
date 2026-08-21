@@ -50,6 +50,14 @@ MonoBehaviour:
   - DropItem
   - Destructible
   - TriggerExplosion
+  - AddPlayer
+  - ChangeSprite
+  - Initialize
+  - StartGame
+  - RefundBomb
+  - RequestPlaceBomb
+  - RPC_ApplyItem
+  - RPC_DeathSequence
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1
