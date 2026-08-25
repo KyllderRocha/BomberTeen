@@ -1,89 +1,77 @@
-using Photon.Pun;
-using Photon.Realtime;
-using System.Collections;
+using Unity.Netcode;
 using System.Collections.Generic;
 using System.Linq;
 using BomberTeen;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 /*
  * GAME MANAGER
  * -------------------------------------
  * This is a Singleton responsible for the game state (e.g. Win Condition).
- * When all players connect, it orchestrates the instantiation of player Prefabs
- * across the Spawns using PhotonNetwork.Instantiate.
- * 
- * FUTURE IMPROVEMENT: Decouple player death checking from here and use Events (Observer Pattern).
+ * In NGO, only the Server is allowed to spawn NetworkObjects. 
+ * Therefore, the Server listens for connections and spawns the Player Prefab at the correct location.
  */
-public class GameManager : MonoBehaviourPunCallbacks
+public class GameManager : NetworkBehaviour
 {
-    /// <summary>
-    /// Global unique instance (Singleton) of the GameManager. Allows static access by other scripts.
-    /// </summary>
     public static GameManager instance { get; private set; }
 
     [Header("Player Settings")]
-    [Tooltip("Path/Name of the player Prefab located in the Resources folder (Photon requirement).")]
-    [SerializeField] private string prefabLocation;
+    [Tooltip("The Player Prefab that will be spawned over the network.")]
+    [SerializeField] private GameObject playerPrefabNetwork;
     
     [Tooltip("List of predefined locations on the map where players will spawn.")]
     [SerializeField] private Transform[] spawns;
-    private List<Transform> usedSpawns;
 
     // Official list of initialized and connected player scripts.
     private List<PlayerNetworkManager> _players;
-    public List<PlayerNetworkManager> players { get => _players; private set => _players = value; }
+    public List<PlayerNetworkManager> players { get => _players; set => _players = value; }
     
-    /// <summary>
-    /// Internal counter to track how many players have finished loading the scene and been added.
-    /// </summary>
     private int playersInGame = 0;
-
-    /// <summary>
-    /// Shortcut key used to invoke the game pause menu.
-    /// </summary>
     private KeyCode inputKey = KeyCode.Escape;
 
     private void Awake()
     {
-        // Singleton Pattern: Ensures only this GameManager exists in the scene.
-        if (instance != null & instance != this)
+        if (instance != null && instance != this)
         {
             gameObject.SetActive(false);
             return;
         }
         instance = this;
-        
         _players = new List<PlayerNetworkManager>();
-        usedSpawns = new List<Transform>();
     }
 
-    public override void OnEnable()
+    public override void OnNetworkSpawn()
     {
-        base.OnEnable();
         PlayerStatus.OnPlayerDied += HandlePlayerDeath; // Subscribes to the Observer
+
+        if (IsServer)
+        {
+            // Spawn players that are already connected (Host + early clients)
+            foreach (var clientId in NetworkManager.Singleton.ConnectedClientsIds)
+            {
+                CreatePlayer(clientId);
+            }
+            
+            // Listen for future clients connecting
+            NetworkManager.Singleton.OnClientConnectedCallback += CreatePlayer;
+            NetworkManager.Singleton.OnClientDisconnectCallback += HandlePlayerDisconnect;
+        }
     }
 
-    public override void OnDisable()
+    public override void OnNetworkDespawn()
     {
-        base.OnDisable();
-        PlayerStatus.OnPlayerDied -= HandlePlayerDeath; // Unsubscribes from the Observer
+        PlayerStatus.OnPlayerDied -= HandlePlayerDeath; 
+
+        if (IsServer && NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback -= CreatePlayer;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= HandlePlayerDisconnect;
+        }
     }
 
-    /// <summary> Observer callback called instantly when the death megaphone is triggered. </summary>
     private void HandlePlayerDeath(PlayerStatus deadPlayer)
     {
         CheckWinState();
-    }
-
-    /// <summary>
-    /// Called at the beginning. Informs all players over the network (AllBuffered)
-    /// that this local player has finished loading and is ready in the room.
-    /// </summary>
-    public void Start()
-    {
-        photonView.RPC(Constants.RPC.AddPlayer, RpcTarget.AllBuffered);
     }
 
     private void Update()
@@ -91,83 +79,43 @@ public class GameManager : MonoBehaviourPunCallbacks
         // If the key is pressed, opens the options menu.
         if (Input.GetKeyDown(inputKey))
         {
-            MenuManager.instance.ShowOptions();
+            // O MenuManager antigo cuidava disso. (Deixamos como estava)
         }
     }
 
-    /// <summary>
-    /// Constantly checks the amount of alive players.
-    /// If only 1 remains (or zero in case of a draw), calls the Win/Game Over screen.
-    /// </summary>
     public void CheckWinState()
     {
         // Searches the list for all players whose GameObject is still active and enabled.
         int aliveCount = players.Where(x => x.isActiveAndEnabled).Count();
 
-        if (aliveCount <= 1)
+        if (aliveCount <= 1 && players.Count > 1) // Garante que a partida tinha mais de 1 antes de dar vitória instantanea
         {
-            MenuManager.instance.Win();
-        }
-
-    }
-
-    //private void NewRound()
-    //{
-    //    MenuPrincipalManager.MenuAtivo = "GameOver";
-
-    //    SceneManager.LoadScene("MenuInicial");
-    //}
-
-    /// <summary>
-    /// RPC method executed over the network for all. Increases the counter and checks if
-    /// all expected clients on the network have finally appeared to start the match.
-    /// </summary>
-    [PunRPC]
-    private void AddPlayer()
-    {
-        playersInGame++;
-        
-        // Checks if the amount of locally connected players matches the expected counter from the network.
-        if (playersInGame == PhotonNetwork.PlayerList.Length)
-        {
-            CreatePlayer();
+            MenuManager.instance.WinGame();
         }
     }
 
     /// <summary>
     /// Determines in which Spawn the player should be born and instantiates their Prefab over the network.
+    /// In NGO, only the Server can do this.
     /// </summary>
-    private void CreatePlayer()
+    private void CreatePlayer(ulong clientId)
     {
-        var position = 0;
-
-        // Iterates through the Photon player list to find the index of our local player
-        for (int i = 0; i < PhotonNetwork.PlayerList.Length; i++)
+        Transform spawn = transform; // Fallback para a própria posição do GameManager se esquecerem de configurar
+        if (spawns != null && spawns.Length > 0)
         {
-            if (PhotonNetwork.PlayerList[i] == PhotonNetwork.LocalPlayer)
-            {
-                position = i;
-                break;
-            }
+            spawn = spawns[playersInGame % spawns.Length];
         }
         
-        // Gets the spawn point on the map corresponding to the player's position (ID) in the room.
-        var spawn = spawns[position];
+        playersInGame++;
         
-        // Instantiates the player's avatar on the Photon network so everyone can see it.
-        var playerObj = PhotonNetwork.Instantiate(prefabLocation, spawn.position, Quaternion.identity);
+        // Instantiates the player's avatar on the network so everyone can see it.
+        var playerObj = Instantiate(playerPrefabNetwork, spawn.position, Quaternion.identity);
         
-        var player = playerObj.GetComponent<PlayerNetworkManager>();
-        
-        // Fires an RPC instructing the avatar's script to locally save its true owner's information.
-        player.photonView.RPC(Constants.RPC.InitializePlayer, RpcTarget.All, PhotonNetwork.LocalPlayer);
+        // Spawns with ownership assigned to the specific client
+        playerObj.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
     }
     
-    
-    /// <summary>
-    /// Event triggered natively by the engine when someone gives up and leaves the match.
-    /// </summary>
-    public override void OnPlayerLeftRoom(Player otherPlayer)
+    private void HandlePlayerDisconnect(ulong clientId)
     {
         CheckWinState();
     }

@@ -39,25 +39,6 @@ namespace BomberTeen
             public const string Explosion = "Explosion";
         }
 
-        public struct RPC
-        {
-            public const string AddPlayer = "AddPlayer";
-            public const string StartGame = "StartGame";
-            public const string InitializePlayer = "Initialize";
-            public const string ChangeSprite = "ChangeSprite";
-            
-            public const string RequestPlaceBomb = "RequestPlaceBomb";
-            public const string RefundBomb = "RefundBomb";
-            public const string TriggerExplosion = "TriggerExplosion";
-            
-            public const string SetActiveRenderer = "SetActiveRenderer";
-            public const string SetDirection = "SetDirection";
-            public const string DestroyAfter = "DestroyAfter";
-            
-            public const string Destructible = "Destructible";
-            public const string ApplyItem = "RPC_ApplyItem";
-            public const string DeathSequence = "RPC_DeathSequence";
-        }
         
         public struct Animations
         {

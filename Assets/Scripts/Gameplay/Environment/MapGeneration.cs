@@ -1,4 +1,4 @@
-using Photon.Pun;
+using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 using System.Security.Cryptography;
@@ -15,14 +15,14 @@ using UnityEngine.UIElements;
  * 
  * NullReference Bug fix included in the Cell verification.
  */
-public class MapGeneration : MonoBehaviourPunCallbacks
+public class MapGeneration : NetworkBehaviour
 {
     public static MapGeneration instance { get; private set; }
 
     [Header("Destructible")]
     public Tilemap destructibleTiles;
     public TileBase tileBrick;
-    public string prefabDestructible;
+    public GameObject destructiblePrefabNetwork;
 
     [Header("Indestructible")]
     public Tilemap indestructibleTiles;
@@ -38,11 +38,11 @@ public class MapGeneration : MonoBehaviourPunCallbacks
         instance = this;
     }
 
-    public void Start()
+    public override void OnNetworkSpawn()
     {
         // Security: The entire map is only generated on the "Host" machine.
         // It will decide where the walls are and send the Blueprint via RPC to the others.
-        if (PhotonNetwork.IsMasterClient)
+        if (IsServer)
         {
             Vector3Int cell = destructibleTiles.origin;
             TileBase tile = null;
@@ -66,12 +66,12 @@ public class MapGeneration : MonoBehaviourPunCallbacks
                         if (Random.value < 0.75f)
                         {
                             // Sends the order to everyone: Place the "Brick" art at X and Y
-                            photonView.RPC("SetDestructibleTile", RpcTarget.All, cell.x, cell.y, "Brick");
+                            SetDestructibleTileRpc(cell.x, cell.y, "Brick");
                         }
                     }else if(tile != null)
                     {
                         // If there was an improper wall, ensures the entire network clears it
-                        photonView.RPC("SetDestructibleTile", RpcTarget.All, cell.x, cell.y, "");
+                        SetDestructibleTileRpc(cell.x, cell.y, "");
                     }
                     cell.x += 1;
                 }
@@ -84,8 +84,8 @@ public class MapGeneration : MonoBehaviourPunCallbacks
     /// Edits the Tilemap component. The RPC is received by all computers to 
     /// place the map boxes in exactly the same coordinates.
     /// </summary>
-    [PunRPC]
-    public void SetDestructibleTile(int x, int y, string tileText)
+    [Rpc(SendTo.ClientsAndHost)]
+    public void SetDestructibleTileRpc(int x, int y, string tileText)
     {
         Vector3Int cell = new Vector3Int(x, y);
         TileBase tile = null;
@@ -100,8 +100,8 @@ public class MapGeneration : MonoBehaviourPunCallbacks
     /// Called by the BombController (from the host's machine) informing that the fire hit a box.
     /// Erases the solid block (Tile) and spawns the animated dust model (Destructible) in its place.
     /// </summary>
-    [PunRPC]
-    public void Destructible(float x, float y)
+    [Rpc(SendTo.Server)]
+    public void DestructibleRpc(float x, float y)
     {
         // Tilemap offset correction
         x -= 1;
@@ -112,14 +112,25 @@ public class MapGeneration : MonoBehaviourPunCallbacks
         if (tile != null)
         {
             // Tells everyone to remove the visual and solid "wall" (Tile)
-            photonView.RPC("SetDestructibleTile", RpcTarget.All, cell.x, cell.y, "");
+            SetDestructibleTileRpc(cell.x, cell.y, "");
 
             Vector3Int cellDestructible = new Vector3Int((int)x +1, (int) y +1);
             
             // Physically instantiates the 2D dust animation object via Photon, which will drop the item later
-            var destructibleObj = PhotonNetwork.Instantiate(prefabDestructible, cellDestructible, Quaternion.identity);
+            if (destructiblePrefabNetwork != null)
+            {
+                var destructibleObj = Instantiate(destructiblePrefabNetwork, cellDestructible, Quaternion.identity);
+                var netObj = destructibleObj.GetComponent<NetworkObject>();
+                
+                if (netObj != null)
+                {
+                    netObj.Spawn(true);
+                }
+                else
+                {
+                    Debug.LogError("[MapGeneration] O Prefab configurado no 'Destructible Prefab Network' não possui um componente NetworkObject! O jogo não pode instanciá-lo na rede.");
+                }
+            }
         }
     }
-
-
 }

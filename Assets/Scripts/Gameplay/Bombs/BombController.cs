@@ -1,10 +1,10 @@
-using Photon.Pun;
+using Unity.Netcode;
 using System.Collections;
 using UnityEngine;
 using BomberTeen;
 using UnityEngine.Tilemaps;
 
-public class BombController : MonoBehaviourPunCallbacks
+public class BombController : NetworkBehaviour
 {
     /*
      * Improvements
@@ -47,9 +47,9 @@ public class BombController : MonoBehaviourPunCallbacks
 
     [Header("Network Prefabs (Photon Resources)")]
     // These names (strings) must exactly match the names of the Prefabs saved in the 'Resources' folder of the project.
-    public string prefabLocation;
-    public string explosionLocation;
-    public string destructibleLocation;
+    public GameObject bombPrefabNetwork;
+    public GameObject explosionPrefabNetwork;
+    public GameObject destructiblePrefabNetwork;
 
     public MapGeneration mapGeneration;
 
@@ -65,7 +65,7 @@ public class BombController : MonoBehaviourPunCallbacks
 
     private void Update()
     {
-        if (photonView.IsMine)
+        if (IsSpawned && IsOwner)
         {
             if(bombsRemaining > 0 && Input.GetKeyDown(plantKey))
             {
@@ -76,34 +76,32 @@ public class BombController : MonoBehaviourPunCallbacks
                 position.y = Mathf.Round(position.y);
                 
                 // Pede permissão e execução ao Host (Server Authority)
-                photonView.RPC(Constants.RPC.RequestPlaceBomb, RpcTarget.MasterClient, position);
+                RequestPlaceBombRpc(position);
             }
         }
         
     }
 
-    [PunRPC]
-    public void RequestPlaceBomb(Vector2 position)
+    [Rpc(SendTo.Server)]
+    public void RequestPlaceBombRpc(Vector2 position)
     {
-        if (!PhotonNetwork.IsMasterClient) return;
-
-        // Cria a bomba na rede. Como o MasterClient chamou Instantiate, a bomba pertence ao MasterClient.
-        GameObject bomb = PhotonNetwork.Instantiate(prefabLocation, position, Quaternion.identity);
+        GameObject bomb = Instantiate(bombPrefabNetwork, position, Quaternion.identity);
+        bomb.GetComponent<NetworkObject>().Spawn(true);
         
         Bomb bombScript = bomb.GetComponent<Bomb>();
         if (bombScript != null)
         {
-            bombScript.ownerViewID = photonView.ViewID; // Guarda quem foi o dono para devolver depois
+            bombScript.ownerViewID = OwnerClientId; // Guarda quem foi o dono para devolver depois
         }
 
         // Inicia o timer da bomba exclusivamente no Servidor
         StartCoroutine(ServerPlaceBomb(bomb, position));
     }
 
-    [PunRPC]
-    public void RefundBomb()
+    [Rpc(SendTo.ClientsAndHost)]
+    public void RefundBombRpc()
     {
-        if (photonView.IsMine)
+        if (IsOwner)
         {
             bombsRemaining++; // Devolve a bomba pro jogador
         }
@@ -140,10 +138,10 @@ public class BombController : MonoBehaviourPunCallbacks
         if (bomb != null)
         {
             ExecuteExplosion(bomb.transform.position);
-            PhotonNetwork.Destroy(bomb); // MasterClient apaga a bomba
+            bomb.GetComponent<NetworkObject>().Despawn();
 
             // Envia RPC avisando o dono original para recuperar sua bomba
-            photonView.RPC(Constants.RPC.RefundBomb, RpcTarget.All);
+            RefundBombRpc();
         }
     }
 
@@ -153,7 +151,7 @@ public class BombController : MonoBehaviourPunCallbacks
     /// </summary>
     private void ExecuteExplosion(Vector2 position)
     {
-        if (!PhotonNetwork.IsMasterClient) return;
+        if (!IsServer) return;
 
         position.x = Mathf.Round(position.x);
         position.y = Mathf.Round(position.y);
@@ -161,11 +159,12 @@ public class BombController : MonoBehaviourPunCallbacks
         AudioManager.instance.PlaySFX("Explosion");
 
         // Creates the central fire of the explosion over the network
-        var explosionObj = PhotonNetwork.Instantiate(explosionLocation, position, Quaternion.identity);
+        var explosionObj = Instantiate(explosionPrefabNetwork, position, Quaternion.identity);
+        explosionObj.GetComponent<NetworkObject>().Spawn(true);
         var explosion = explosionObj.GetComponent<Explosion>();
 
-        explosion.photonView.RPC(Constants.RPC.SetActiveRenderer, RpcTarget.All, Constants.Animations.ExplosionStart); // 'start' is the center sprite
-        explosion.photonView.RPC(Constants.RPC.DestroyAfter, RpcTarget.All, explosionDuration);
+        explosion.SetActiveRendererRpc(Constants.Animations.ExplosionStart); // 'start' is the center sprite
+        explosion.DestroyAfterRpc(explosionDuration);
 
         // Starts the creation of fire rays for each side based on the explosionRadius size
         Explode(position, Vector2.up, explosionRadius);
@@ -197,29 +196,24 @@ public class BombController : MonoBehaviourPunCallbacks
             ItemPickup item = hit.GetComponentInParent<ItemPickup>();
 
             // If it hit another bomb, triggers a chain reaction on it
-            if (hitBomb != null)
+                if (hitBomb != null)
             {
-                Debug.Log($"[BombController.Explode] Found a bomb! Sending RPC to {hitBomb.name}");
-                PhotonView pv = hitBomb.GetComponentInParent<PhotonView>();
-                if (pv != null)
-                {
-                    pv.RPC("TriggerExplosion", RpcTarget.All);
-                }
+                hitBomb.TriggerExplosionRpc();
                 stopped = true;
             }
             // If it hit a collectible (power-up), burns it from the network
             else if (item != null)
             {
-                if (PhotonNetwork.IsMasterClient && item.GetComponent<PhotonView>() != null)
+                if (IsServer && item.GetComponent<NetworkObject>() != null)
                 {
-                    PhotonNetwork.Destroy(item.gameObject);
+                    item.GetComponent<NetworkObject>().Despawn();
                 }
             }
             // If it hit a destructible box (comparing LayerMask using bitwise)
             else if (explosionLayerMask == (explosionLayerMask | (1 << hit.gameObject.layer)))
             {
                 // Warns the Host (MasterClient) that the map coordinate (Tilemap) should be destroyed
-                MapGeneration.instance.photonView.RPC(Constants.RPC.Destructible, RpcTarget.MasterClient, position.x, position.y);
+                MapGeneration.instance.DestructibleRpc(position.x, position.y);
                 stopped = true;
             }
         }
@@ -230,13 +224,14 @@ public class BombController : MonoBehaviourPunCallbacks
             return;
         }
 
-        var explosionObj = PhotonNetwork.Instantiate(explosionLocation, position, Quaternion.identity);
+        var explosionObj = Instantiate(explosionPrefabNetwork, position, Quaternion.identity);
+        explosionObj.GetComponent<NetworkObject>().Spawn(true);
         var explosion = explosionObj.GetComponent<Explosion>();
 
         // If there are still blocks to expand, uses the body of the ray ("middle"). Otherwise, uses the tip ("end").
-        explosion.photonView.RPC(Constants.RPC.SetActiveRenderer, RpcTarget.All, length > 1 ? Constants.Animations.ExplosionMiddle : Constants.Animations.ExplosionEnd);
-        explosion.photonView.RPC(Constants.RPC.SetDirection, RpcTarget.All, direction);
-        explosion.photonView.RPC(Constants.RPC.DestroyAfter, RpcTarget.All, explosionDuration);
+        explosion.SetActiveRendererRpc(length > 1 ? Constants.Animations.ExplosionMiddle : Constants.Animations.ExplosionEnd);
+        explosion.SetDirectionRpc(direction);
+        explosion.DestroyAfterRpc(explosionDuration);
 
         // Calls itself again for the next square (Recursion) subtracting 1 from the remaining length
         Explode(position, direction, length - 1);

@@ -1,4 +1,4 @@
-using Photon.Pun;
+using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 /// Script attached to the debris animation of a box that was just exploded.
 /// It lives for a short time, disappears from the screen, and has a mathematical chance to drop a Power-Up (Item).
 /// </summary>
-public class Destructible : MonoBehaviourPunCallbacks
+public class Destructible : NetworkBehaviour
 {
     [Tooltip("Time (in seconds) that the breaking box animation lasts before disappearing.")]
     public float destructionTime = 0.9f;
@@ -17,26 +17,50 @@ public class Destructible : MonoBehaviourPunCallbacks
     [Range(0f, 1f)]
     public float itemSpawnChance = 0.2f;
     
-    [Tooltip("Exact names of the prefabs in the Resources folder that can drop (Ex: SpeedItem, BombItem).")]
-    public string[] spawnableItems;
+    [Tooltip("Exact references to the network prefabs that can drop.")]
+    public GameObject[] spawnableItemsNetwork;
 
-    private void Start()
+    public override void OnNetworkSpawn()
     {
-        // Programs the auto-destruction of this piece of wall after X seconds
-        Destroy(gameObject, destructionTime);
+        if (IsServer)
+        {
+            StartCoroutine(DespawnRoutine());
+        }
     }
 
-    /// <summary> When the destruction animation ends, the engine natively calls OnDestroy. </summary>
-    private void OnDestroy()
+    private IEnumerator DespawnRoutine()
     {
-        // Raffle: If there are registered items, passed the random check, and YOU are the Match Host...
-        if (spawnableItems.Length > 0 && Random.value < itemSpawnChance && PhotonNetwork.IsMasterClient)
-        {
-            // Pulls a random power-up from the list of available items
-            int randomIndex = Random.Range( 0, spawnableItems.Length );
+        yield return new WaitForSeconds(destructionTime);
 
-            // Instantiates the PowerUp via network so everyone in the room sees the item spawning on the ground
-            var itemObj = PhotonNetwork.Instantiate(spawnableItems[randomIndex], transform.position, Quaternion.identity);
+        if (spawnableItemsNetwork == null || spawnableItemsNetwork.Length == 0)
+        {
+            Debug.LogWarning("[Destructible] A lista 'Spawnable Items Network' está vazia! Arraste os prefabs de itens no Inspector.");
         }
+        else
+        {
+            float sorteio = Random.value;
+            Debug.Log($"[Destructible] Tentando dropar item. Sorteio: {sorteio:F2} | Chance Necessária: menor que {itemSpawnChance:F2}");
+
+            if (sorteio < itemSpawnChance)
+            {
+                int randomIndex = Random.Range(0, spawnableItemsNetwork.Length);
+                var itemToSpawn = spawnableItemsNetwork[randomIndex];
+
+                if (itemToSpawn != null)
+                {
+                    Debug.Log($"[Destructible] Sucesso! Sorteou o item: {itemToSpawn.name}");
+                    var itemObj = Instantiate(itemToSpawn, transform.position, Quaternion.identity);
+                    itemObj.GetComponent<NetworkObject>().Spawn(true);
+                }
+                else
+                {
+                    Debug.LogError("[Destructible] O item sorteado está nulo! Há um espaço vazio (None) no Array do Inspector.");
+                }
+            }
+        }
+
+        // Host despawns the block safely
+        if (GetComponent<NetworkObject>() != null)
+            GetComponent<NetworkObject>().Despawn();
     }
 }

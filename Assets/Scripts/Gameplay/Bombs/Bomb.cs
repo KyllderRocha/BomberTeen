@@ -1,5 +1,5 @@
 using UnityEngine;
-using Photon.Pun;
+using Unity.Netcode;
 using BomberTeen;
 
 /// <summary>
@@ -8,10 +8,10 @@ using BomberTeen;
 /// this script deals only with the bomb itself, triggering early detonation 
 /// if it is hit by another explosion (Chain Reaction).
 /// </summary>
-public class Bomb : MonoBehaviourPun
+public class Bomb : NetworkBehaviour
 {
     /// <summary> PhotonView ID of the player who planted this bomb (to refund). </summary>
-    public int ownerViewID;
+    public ulong ownerViewID;
     
     /// <summary> Flag read by the player's BombController to know if the fuse timer should be interrupted. </summary>
     public bool shouldExplode = false;
@@ -42,7 +42,7 @@ public class Bomb : MonoBehaviourPun
     void Update()
     {
         // Server Authority: Somente o MasterClient monitora colisão com fogo
-        if (exploded || !PhotonNetwork.IsMasterClient) return;
+        if (exploded || !IsServer) return;
 
         // Throws a "virtual box" over the bomb and collects everything it touched using the pre-allocated cache.
         int count = Physics2D.OverlapBox(transform.position, Vector2.one / 2f, 0f, filter, results);
@@ -56,8 +56,7 @@ public class Bomb : MonoBehaviourPun
             {
                 Debug.Log($"[Bomb] Detected an explosion at position {transform.position}! Sending RPC to explode...");
                 // Dispara o comando apenas para o MasterClient (que já está executando, mas mantém a arquitetura limpa)
-                TriggerExplosion();
-                photonView.RPC(Constants.RPC.TriggerExplosion, RpcTarget.Others); // Avisa os outros clientes visualmente se precisar
+                TriggerExplosionRpc();
                 break;
             }
         }
@@ -67,8 +66,8 @@ public class Bomb : MonoBehaviourPun
     /// Forces the bomb detonation over the network. Called when a chain reaction occurs.
     /// Changes the flag so the owner's BombController notices the interruption.
     /// </summary>
-    [PunRPC]
-    public void TriggerExplosion()
+    [Rpc(SendTo.ClientsAndHost)]
+    public void TriggerExplosionRpc()
     {
         Debug.Log($"[Bomb] RPC TriggerExplosion received!");
         if (exploded) return; // Prevents infinite loop in case two bombs try to explode at the same time

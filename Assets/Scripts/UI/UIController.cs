@@ -17,9 +17,14 @@ public class UIController : MonoBehaviour
 
     private void Start()
     {
+        if (AudioManager.instance == null) return;
+
         // Synchronizes the visual position of the bars (Sliders) with the volume saved in the AudioManager
-        musicSlider.value = AudioManager.instance.musicSource.volume;
-        sfxSlider.value = AudioManager.instance.sfxSource.volume;
+        if (musicSlider != null && AudioManager.instance.musicSource != null)
+            musicSlider.value = AudioManager.instance.musicSource.volume;
+            
+        if (sfxSlider != null && AudioManager.instance.sfxSource != null)
+            sfxSlider.value = AudioManager.instance.sfxSource.volume;
     }
 
     public void ToggleMusic()

@@ -124,8 +124,8 @@ GameObject:
   - component: {fileID: 5251112671239023572}
   - component: {fileID: 5251112671239023573}
   - component: {fileID: 5251112671239023578}
+  - component: {fileID: 2687641847445402405}
   - component: {fileID: 5251112671239023574}
-  - component: {fileID: 5493582629400186749}
   - component: {fileID: 5251112671239023575}
   - component: {fileID: -604389073568635173}
   - component: {fileID: -9048520785402874778}
@@ -221,6 +221,27 @@ CircleCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_Radius: 0.5
+--- !u!114 &2687641847445402405
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5251112671239023579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 1751424950
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
 --- !u!114 &5251112671239023574
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -233,7 +254,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ad248c548b277e249bf2b0bd2d682b94, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  inputKey: 32
+  plantKey: 32
   bombPrefab: {fileID: 3873356392798291287, guid: 88a6978e5e9553742bd6546eb60cc55e, type: 3}
   bombFuseTime: 3
   bombAmount: 2
@@ -241,36 +262,14 @@ MonoBehaviour:
   explosionLayerMask:
     serializedVersion: 2
     m_Bits: 64
-  explosianDuration: 1
+  explosionDuration: 1
   explosionRadius: 1
   destructibleTiles: {fileID: 1362621916322471555, guid: ab9fb264a61a9314b8ea9b34b14f4bf6, type: 3}
   destructiblePrefab: {fileID: 1984060781610760523, guid: 9421485f102d006489723a93fb10c599, type: 3}
-  _localizacao: Bomb
-  _localizacaoExplosion: Explosion
-  _localizacaoDestructible: Destructible
+  bombPrefabNetwork: {fileID: 3873356392798291287, guid: f5881325e2e09a5419f80f1aa72fa22c, type: 3}
+  explosionPrefabNetwork: {fileID: 8717463144616440048, guid: e30b3fcc9d856474982e18b25c7f3647, type: 3}
+  destructiblePrefabNetwork: {fileID: 774506890245712471, guid: 93b5048784715c44eaea11743791786c, type: 3}
   mapGeneration: {fileID: 0}
---- !u!114 &5493582629400186749
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5251112671239023579}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 0
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!114 &5251112671239023575
 MonoBehaviour:
   m_ObjectHideFlags: 0

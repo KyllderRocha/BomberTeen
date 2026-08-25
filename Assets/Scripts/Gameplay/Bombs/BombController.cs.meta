@@ -3,7 +3,15 @@ guid: ad248c548b277e249bf2b0bd2d682b94
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - bombPrefab: {fileID: 3873356392798291287, guid: 88a6978e5e9553742bd6546eb60cc55e, type: 3}
+  - explosionPrefab: {fileID: -7955072638306155726, guid: 8a982813141c2334c82a9b6fac831423, type: 3}
+  - destructibleTiles: {instanceID: 0}
+  - destructiblePrefab: {fileID: 1984060781610760523, guid: 9421485f102d006489723a93fb10c599, type: 3}
+  - bombPrefabNetwork: {instanceID: 0}
+  - explosionPrefabNetwork: {instanceID: 0}
+  - destructiblePrefabNetwork: {instanceID: 0}
+  - mapGeneration: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

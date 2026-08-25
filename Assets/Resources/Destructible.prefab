@@ -12,8 +12,8 @@ GameObject:
   - component: {fileID: 2927788334585963051}
   - component: {fileID: 5885201665069692821}
   - component: {fileID: 1314621082388383422}
+  - component: {fileID: 2676623157100472655}
   - component: {fileID: 1984060781610760523}
-  - component: {fileID: -4672333783985054849}
   m_Layer: 6
   m_Name: Destructible
   m_TagString: Untagged
@@ -165,6 +165,27 @@ MonoBehaviour:
   animationTime: 0.16666667
   loop: 0
   idle: 0
+--- !u!114 &2676623157100472655
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 774506890245712471}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 3984190434
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
 --- !u!114 &1984060781610760523
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -179,30 +200,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   destructionTime: 0.9
   itemSpawnChance: 0.5
-  spawnableItems:
-  - ItemBlastRadius
-  - ItemExtraBomb
-  - ItemSpeedIncrease
---- !u!114 &-4672333783985054849
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 774506890245712471}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 0
-  ObservedComponents:
-  - {fileID: 0}
-  sceneViewId: 0
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
+  spawnableItemsNetwork:
+  - {fileID: 3153123838963661476, guid: 00282bd466bbfd048bb553b714d897f1, type: 3}
+  - {fileID: 1865713870541826675, guid: 71ea0b18cf5a8be4881b6b38b85ae9d4, type: 3}
+  - {fileID: 1547360905590104472, guid: 5a67737161ff49f4baacfc57d2ed6dbc, type: 3}

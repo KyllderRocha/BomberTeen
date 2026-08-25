@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 
-using Photon.Pun;
+using Unity.Netcode;
+using BomberTeen;
 
 /// <summary>
 /// Represents the items (Power-Ups) that the player can collect while walking around the map.
 /// </summary>
-public class ItemPickup : MonoBehaviourPun
+public class ItemPickup : NetworkBehaviour
 {
     public enum ItemType
     {
@@ -49,33 +50,32 @@ public class ItemPickup : MonoBehaviourPun
     private void OnTriggerEnter2D(Collider2D other)
     {
         // Server Authority: Somente o Servidor decide quem tocou no item primeiro
-        if (!PhotonNetwork.IsMasterClient) return;
+        if (!IsServer) return;
 
         if (other.CompareTag(Constants.Tags.Player))
         {
-            PhotonView playerPv = other.GetComponent<PhotonView>();
-            if (playerPv != null)
+            NetworkObject playerNo = other.GetComponent<NetworkObject>();
+            if (playerNo != null)
             {
                 // Dispara o RPC para todos os computadores aplicarem o buff no jogador específico
-                photonView.RPC(Constants.RPC.ApplyItem, RpcTarget.All, playerPv.ViewID);
+                ApplyItemRpc(playerNo.NetworkObjectId);
             }
         }
     }
 
-    [PunRPC]
-    private void RPC_ApplyItem(int playerViewID)
+    [Rpc(SendTo.ClientsAndHost)]
+    private void ApplyItemRpc(ulong playerNetworkObjectId)
     {
         // Encontra o jogador na rede usando o ID único dele
-        PhotonView playerPv = PhotonView.Find(playerViewID);
-        if (playerPv != null)
+        if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(playerNetworkObjectId, out NetworkObject playerNo))
         {
-            OnItemPickup(playerPv.gameObject); // Aplica o buff visual e lógico
+            OnItemPickup(playerNo.gameObject); // Aplica o buff visual e lógico
         }
         
         // Apenas o MasterClient remove o objeto de forma sincronizada da rede
-        if (PhotonNetwork.IsMasterClient && gameObject != null)
+        if (IsServer && gameObject != null)
         {
-            PhotonNetwork.Destroy(gameObject);
+            GetComponent<NetworkObject>().Despawn();
         }
     }
 }

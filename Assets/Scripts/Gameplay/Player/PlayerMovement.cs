@@ -1,10 +1,9 @@
-using Photon.Pun;
-using Photon.Realtime;
+using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerMovement : MonoBehaviourPunCallbacks
+public class PlayerMovement : NetworkBehaviour
 {
     /// <summary>
     /// Local reference to the body's physics engine.
@@ -21,8 +20,12 @@ public class PlayerMovement : MonoBehaviourPunCallbacks
     {
         Rigidbody = GetComponent<Rigidbody2D>();
 
+    }
+
+    public override void OnNetworkSpawn()
+    {
         // Handles gravity and collisions of this physical body in case it's just a clone on another PC's screen.
-        if(!photonView.IsMine)
+        if(!IsOwner)
             Rigidbody.isKinematic = false;
     }
 

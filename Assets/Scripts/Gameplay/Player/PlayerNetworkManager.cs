@@ -1,5 +1,4 @@
-using Photon.Pun;
-using Photon.Realtime;
+using Unity.Netcode;
 using UnityEngine;
 using BomberTeen;
 
@@ -10,20 +9,22 @@ using BomberTeen;
  * The file was kept so as not to break the compilation of the GameManager, which holds a list of it.
  * Now it serves exclusively to register the local player in the room.
  */
-public class PlayerNetworkManager : MonoBehaviourPunCallbacks
+public class PlayerNetworkManager : NetworkBehaviour
 {
-    private Player _photonPlayer;
-    
-    /// <summary> Exclusive numerical ID of this player provided by Photon. </summary>
-    public int id;
+    /// <summary> Exclusive numerical ID of this player provided by Netcode. </summary>
+    public ulong id;
 
-    /// <summary> Receives from GameManager the data of which real user controls this avatar. </summary>
-    [PunRPC]
-    public void Initialize(Player player)
+    public override void OnNetworkSpawn()
     {
-        _photonPlayer = player;
-        id = player.ActorNumber;
-        
+        id = OwnerClientId;
         GameManager.instance.players.Add(this);
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        if (GameManager.instance != null)
+        {
+            GameManager.instance.players.Remove(this);
+        }
     }
 }

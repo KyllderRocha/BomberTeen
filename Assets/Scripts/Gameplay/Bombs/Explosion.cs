@@ -1,4 +1,4 @@
-using Photon.Pun;
+using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,7 +9,7 @@ using BomberTeen;
 /// Synchronizes via RPC which piece of the fire texture (start, middle, or end) will be rendered
 /// on all screens, rotating the image according to the original vector.
 /// </summary>
-public class Explosion : MonoBehaviourPunCallbacks
+public class Explosion : NetworkBehaviour
 {
     [Header("Explosion Animations")]
     public AnimatedSpriteRenderer start;
@@ -17,8 +17,8 @@ public class Explosion : MonoBehaviourPunCallbacks
     public AnimatedSpriteRenderer end;
 
     /// <summary> RPC called by BombController to visually activate only one of the three fire pieces. </summary>
-    [PunRPC]
-    public void SetActiveRenderer(string renderer)
+    [Rpc(SendTo.ClientsAndHost)]
+    public void SetActiveRendererRpc(string renderer)
     {
         start.enabled = renderer == Constants.Animations.ExplosionStart;
         middle.enabled = renderer == Constants.Animations.ExplosionMiddle;
@@ -29,8 +29,8 @@ public class Explosion : MonoBehaviourPunCallbacks
     /// RPC that receives the direction and converts it to an angle in Degrees using Arc-Tangent (Atan2), 
     /// rotating the fire art to the correct Z axis. 
     /// </summary>
-    [PunRPC]
-    public void SetDirection(Vector2 direction)
+    [Rpc(SendTo.ClientsAndHost)]
+    public void SetDirectionRpc(Vector2 direction)
     {
         float angle = Mathf.Atan2(direction.y, direction.x);
         transform.rotation = Quaternion.AngleAxis(angle * Mathf.Rad2Deg, Vector3.forward);
@@ -40,8 +40,8 @@ public class Explosion : MonoBehaviourPunCallbacks
     /// RPC that deletes the fire block from the map after the smoke clears.
     /// (Uses Unity's default Destroy function because the explosion was instantiated without specific network ownership and needs to disappear universally)
     /// </summary>
-    [PunRPC]
-    public void DestroyAfter(float seconds)
+    [Rpc(SendTo.ClientsAndHost)]
+    public void DestroyAfterRpc(float seconds)
     {
         Destroy(gameObject, seconds);
     }

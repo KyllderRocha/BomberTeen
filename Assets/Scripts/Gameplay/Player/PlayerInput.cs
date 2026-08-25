@@ -1,12 +1,11 @@
-using Photon.Pun;
-using Photon.Realtime;
+using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(PlayerMovement))] 
 [RequireComponent(typeof(PlayerAnimatorSync))] 
-public class PlayerInput : MonoBehaviourPunCallbacks
+public class PlayerInput : NetworkBehaviour
 {
     private PlayerMovement playerMovement;
     private PlayerAnimatorSync playerAnimator;
@@ -26,7 +25,7 @@ public class PlayerInput : MonoBehaviourPunCallbacks
     void Update()
     {
         // Only checks keyboard commands if you are the true "owner" (LocalPlayer) of this character.
-        if (photonView.IsMine)
+        if (IsSpawned && IsOwner)
         {
             Vector2 newDirection = Vector2.zero;
 

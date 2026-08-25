@@ -1,4 +1,4 @@
-using Photon.Pun;
+using Unity.Netcode;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ using UnityEngine.UI;
 /// Manager responsible for opening/closing the Pause (Options), Win, and Defeat screens
 /// during gameplay (Different from MainMenuManager which acts only in the Lobby).
 /// </summary>
-public class MenuManager : MonoBehaviourPunCallbacks
+public class MenuManager : MonoBehaviour
 {
     public static MenuManager instance;
 
@@ -38,25 +38,22 @@ public class MenuManager : MonoBehaviourPunCallbacks
         }
 
         instance = this;
-        //DontDestroyOnLoad(gameObject);
     }
 
-    public override void OnEnable()
+    private void OnEnable()
     {
-        base.OnEnable();
         PlayerStatus.OnPlayerDied += HandlePlayerDeath; // Subscribes to the death radio
     }
 
-    public override void OnDisable()
+    private void OnDisable()
     {
-        base.OnDisable();
         PlayerStatus.OnPlayerDied -= HandlePlayerDeath; // Unsubscribes
     }
 
     /// <summary> Observer callback. Only shows the Game Over screen if you are the owner of the character that died. </summary>
     private void HandlePlayerDeath(PlayerStatus deadPlayer)
     {
-        if (deadPlayer.photonView.IsMine)
+        if (deadPlayer.IsOwner) // Netcode Owner Check
         {
             activeMenu = Constants.Menus.GameOver;
             UpdatePanels();
@@ -90,18 +87,24 @@ public class MenuManager : MonoBehaviourPunCallbacks
         UpdatePanels();
     }
 
-
     public void ClickReturnToGame()
     {
         AudioManager.instance.PlaySFX(Constants.Audio.Click);
         activeMenu = "";
         UpdatePanels();
     }
+    
+    public void ShowOptions()
+    {
+        AudioManager.instance.PlaySFX(Constants.Audio.Click);
+        activeMenu = Constants.Menus.Options;
+        UpdatePanels();
+    }
 
     public void ClickReturnToMenu()
     {
         AudioManager.instance.PlaySFX(Constants.Audio.Click);
-        PhotonNetwork.LeaveRoom();
+        BomberNetworkManager.instance.LeaveRoom();
         SceneManager.LoadScene(Constants.Menus.MainMenuScene);
     }
 

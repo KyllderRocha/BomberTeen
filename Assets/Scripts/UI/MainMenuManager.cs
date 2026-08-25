@@ -1,6 +1,4 @@
-using Photon.Pun;
-using System;
-using System.Collections;
+using Unity.Netcode;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -8,7 +6,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using BomberTeen;
 
-public class MainMenuManager : MonoBehaviourPunCallbacks
+public class MainMenuManager : MonoBehaviour
 {
     [Header("Game Settings")]
     [Tooltip("Exact name of the scene (Level) that will be loaded when starting the match.")]
@@ -36,11 +34,10 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
 
     private void Start()
     {
-        // Checks if the player already has a nickname saved/chosen in the session
-        var nick = NetworkManager.instance.GetNickname();
-        if (PhotonNetwork.IsConnected)
+        var nick = BomberNetworkManager.instance.GetNickname();
+        if (nick == "Player" || string.IsNullOrEmpty(nick))
         {
-            activeMenu = Constants.Menus.Login; // Forces the player to go through the login screen first
+            activeMenu = Constants.Menus.Login; // Força o login se ainda não escolheu um nome
         }
         else
         {
@@ -50,63 +47,66 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
         ChangeMenu();
     }
 
-    /// <summary>
-    /// Automatic Photon event called as soon as the player successfully joins a room.
-    /// </summary>
-    public override void OnJoinedRoom()
+    private void OnEnable()
+    {
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback += HandleClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback += HandleClientDisconnect;
+        }
+    }
+    
+    private void OnDisable()
+    {
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback -= HandleClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= HandleClientDisconnect;
+        }
+    }
+    
+    private void HandleClientConnected(ulong clientId)
     {
         UpdatePlayerList();
-
-        Debug.Log(NetworkManager.instance.GetPlayerCount());
-        
-        // Autostart: If the room fills up with the expected maximum capacity, starts the game automatically.
-        if (NetworkManager.instance.GetPlayerCount() == playerCount)
+        if (BomberNetworkManager.instance.GetPlayerCount() >= playerCount)
         {
-           if (PhotonNetwork.IsMasterClient)
+           if (NetworkManager.Singleton.IsServer)
            {
-               NetworkManager.instance.photonView.RPC(Constants.RPC.StartGame, RpcTarget.All, levelName);
+               NetworkManager.Singleton.SceneManager.LoadScene(levelName, LoadSceneMode.Single);
            }
         }
     }
-
-    /// <summary> Photon Event: Someone new entered the same room you were already in. </summary>
-    public override void OnPlayerEnteredRoom(Photon.Realtime.Player newPlayer)
+    
+    private void HandleClientDisconnect(ulong clientId)
     {
         UpdatePlayerList();
     }
 
-    /// <summary> Photon Event: Someone left/dropped from the room you are in. </summary>
-    public override void OnPlayerLeftRoom(Photon.Realtime.Player otherPlayer)
-    {
-        UpdatePlayerList();
-    }
-
-    /// <summary>
-    /// Button to force the match to start locally (even if the room is not full).
-    /// </summary>
     public void ClickStartGame()
     {
         AudioManager.instance.PlaySFX(Constants.Audio.Click);
-        // Only the host (MasterClient) has the authority to load the map and start the logic
-        NetworkManager.instance.photonView.RPC(Constants.RPC.StartGame, RpcTarget.All, levelName);
+        if (NetworkManager.Singleton.IsServer)
+        {
+            NetworkManager.Singleton.SceneManager.LoadScene(levelName, LoadSceneMode.Single);
+        }
     }
 
-    /// <summary> Matchmaking search button. </summary>
-    public void ClickPlay()
+    public void ClickHostGame()
     {
         AudioManager.instance.PlaySFX(Constants.Audio.Click);
-        activeMenu = Constants.Menus.Lobby; // Changes the UI to the waiting screen (Lobby)
-        
-        // Connects to a random room or creates a new one
-        NetworkManager.instance.JoinRoom();
+        activeMenu = Constants.Menus.Lobby;
+        BomberNetworkManager.instance.HostGame();
         ChangeMenu();
+        UpdatePlayerList();
     }
-
-    /// <summary> Button to cancel the search and return to the main menu. </summary>
-    public void LeaveRoomBtn()
+    
+    public void ClickJoinGame()
     {
-        NetworkManager.instance.LeaveRoom();
-        BackToMainMenu();
+        AudioManager.instance.PlaySFX(Constants.Audio.Click);
+        activeMenu = Constants.Menus.Lobby;
+        BomberNetworkManager.instance.JoinGame();
+        ChangeMenu();
+        UpdatePlayerList();
     }
 
     public void ClickOptions()
@@ -120,30 +120,43 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
     {
         AudioManager.instance.PlaySFX(Constants.Audio.Click);
         activeMenu = Constants.Menus.MainMenu;
-        NetworkManager.instance.LeaveRoom();
+        BomberNetworkManager.instance.LeaveRoom();
         ChangeMenu();
     }
 
-    /// <summary>
-    /// Triggered by clicking "Save" on the login screen. Registers the name the user typed.
-    /// </summary>
     public void LoginBtn()
     {
         var nick = nickName.text;
-        NetworkManager.instance.ChangeNickname(nick);
+        BomberNetworkManager.instance.ChangeNickname(nick);
         BackToMainMenu();
     }
-
-    /// <summary> Gets the formatted string in NetworkManager and updates the visual Lobby text. </summary>
-    public void UpdatePlayerList()
+    
+    public void BackToMainMenu()
     {
-        lobby.text = NetworkManager.instance.GetPlayerList();
+        AudioManager.instance.PlaySFX(Constants.Audio.Click);
+        activeMenu = Constants.Menus.MainMenu;
+        ChangeMenu();
     }
 
-    /// <summary>
-    /// Updates all UI panels. Based on the current value of the 'activeMenu' string, 
-    /// only the corresponding panel will be activated (true), while the others are hidden (false).
-    /// </summary>
+    public void UpdatePlayerList()
+    {
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+        {
+            if (NetworkManager.Singleton.IsServer)
+            {
+                lobby.text = "Host da Partida\nJogadores conectados: " + NetworkManager.Singleton.ConnectedClientsIds.Count + " / " + playerCount;
+            }
+            else
+            {
+                lobby.text = "Você entrou na sala!\nAguardando o Host iniciar...";
+            }
+        }
+        else
+        {
+            lobby.text = "Conectando...";
+        }
+    }
+
     public void ChangeMenu()
     {
         UpdatePanels();
@@ -151,7 +164,6 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
 
     private void UpdatePanels()
     {
-        // Activates the panel only if its name matches the current activeMenu state
         mainMenuPanel.SetActive(activeMenu == Constants.Menus.MainMenu);
         optionsPanel.SetActive(activeMenu == Constants.Menus.Options);
         gameOverPanel.SetActive(activeMenu == Constants.Menus.GameOver);
@@ -159,12 +171,10 @@ public class MainMenuManager : MonoBehaviourPunCallbacks
         lobbyPanel.SetActive(activeMenu == Constants.Menus.Lobby);
     }
 
-    /// <summary> Closes the game (only works when the build is exported/compiled to a .exe/.apk). </summary>
     public void ClickQuit()
     {
         AudioManager.instance.PlaySFX(Constants.Audio.Click);
         Debug.Log("Quit Game");
         Application.Quit();
     }
-
 }

@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 3777495026172962490}
   - component: {fileID: 6011310695835827747}
   - component: {fileID: 6137196860509566446}
+  - component: {fileID: -5806184321039743065}
   - component: {fileID: 5707510383637395690}
   m_Layer: 7
   m_Name: Bomb
@@ -179,6 +180,27 @@ MonoBehaviour:
   animationTime: 0.25
   loop: 1
   idle: 0
+--- !u!114 &-5806184321039743065
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3873356392798291287}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 2609202193
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
 --- !u!114 &5707510383637395690
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -191,5 +213,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 19cf7a15b31212c80937a5d902bc8744, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Bomb
-  ownerController: {fileID: 0}
+  ownerViewID: 0
   shouldExplode: 0

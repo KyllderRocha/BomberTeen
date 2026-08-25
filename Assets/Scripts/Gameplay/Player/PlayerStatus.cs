@@ -1,12 +1,11 @@
-using Photon.Pun;
-using Photon.Realtime;
+using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using BomberTeen;
 
 [RequireComponent(typeof(PlayerAnimatorSync))]
-public class PlayerStatus : MonoBehaviourPunCallbacks
+public class PlayerStatus : NetworkBehaviour
 {
     // OBSERVER PATTERN: The player's radio. Other scripts listen when they announce their death.
     public static event System.Action<PlayerStatus> OnPlayerDied;
@@ -21,18 +20,18 @@ public class PlayerStatus : MonoBehaviourPunCallbacks
     private void OnTriggerEnter2D(Collider2D other)
     {
         // Server Authority: Somente o MasterClient valida colisões letais
-        if (!PhotonNetwork.IsMasterClient) return;
+        if (!IsServer) return;
 
         // Checks if the "ghost" object that this player touched belongs to the bomb's Explosion area
         if (other.gameObject.layer == LayerMask.NameToLayer(Constants.Layers.Explosion))
         {
             // O Servidor manda a sentença de morte para todos os computadores (RPC)
-            photonView.RPC(Constants.RPC.DeathSequence, RpcTarget.All);
+            DeathSequenceRpc();
         }
     }
 
-    [PunRPC]
-    private void RPC_DeathSequence()
+    [Rpc(SendTo.ClientsAndHost)]
+    private void DeathSequenceRpc()
     {
         DeathSequence();
     }

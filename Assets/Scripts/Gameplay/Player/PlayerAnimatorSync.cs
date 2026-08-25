@@ -1,11 +1,10 @@
-using Photon.Pun;
-using Photon.Realtime;
+using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using BomberTeen;
 
-public class PlayerAnimatorSync : MonoBehaviourPunCallbacks
+public class PlayerAnimatorSync : NetworkBehaviour
 {
     [Header("Visual Animations")]
     public AnimatedSpriteRenderer spriteRendererUp; 
@@ -31,15 +30,15 @@ public class PlayerAnimatorSync : MonoBehaviourPunCallbacks
         // Only sends to the network if the direction actually changed (Optimization)
         if (direction == newDirection) return;
         
-        photonView.RPC(Constants.RPC.ChangeSprite, RpcTarget.All, newDirection);
+        ChangeSpriteRpc(newDirection);
     }
 
     /// <summary>
     /// RPC called simultaneously on all PCs in the room. 
     /// Processes the visual change of the character's sprites according to the direction they walked.
     /// </summary>
-    [PunRPC]
-    public void ChangeSprite(Vector2 newDirection)
+    [Rpc(SendTo.ClientsAndHost)]
+    public void ChangeSpriteRpc(Vector2 newDirection)
     {
         AnimatedSpriteRenderer spriteRenderer = activeSpriteRenderer;
         direction = newDirection;
