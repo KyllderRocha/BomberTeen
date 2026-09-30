@@ -16,13 +16,131 @@ public class Explosion : NetworkBehaviour
     public AnimatedSpriteRenderer middle;
     public AnimatedSpriteRenderer end;
 
-    /// <summary> RPC called by BombController to visually activate only one of the three fire pieces. </summary>
+    [Tooltip("Time in seconds before the explosion tile despawns.")]
+    public float duration = 1.0f;
+
+    private readonly NetworkVariable<Unity.Collections.FixedString32Bytes> networkRendererType = new NetworkVariable<Unity.Collections.FixedString32Bytes>(
+        default,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    private readonly NetworkVariable<Vector2> networkDirection = new NetworkVariable<Vector2>(
+        default,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    private void Start()
+    {
+        if (AudioManager.instance != null)
+        {
+            AudioManager.instance.PlaySFX(Constants.Audio.Explosion);
+        }
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        networkRendererType.OnValueChanged += HandleRendererChanged;
+        networkDirection.OnValueChanged += HandleDirectionChanged;
+
+        if (IsServer)
+        {
+            StartCoroutine(ServerDespawnRoutine());
+        }
+        else
+        {
+            if (!networkRendererType.Value.IsEmpty)
+            {
+                ApplyActiveRenderer(networkRendererType.Value.ToString());
+            }
+            if (networkDirection.Value != Vector2.zero)
+            {
+                ApplyDirection(networkDirection.Value);
+            }
+        }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        networkRendererType.OnValueChanged -= HandleRendererChanged;
+        networkDirection.OnValueChanged -= HandleDirectionChanged;
+    }
+
+    private void HandleRendererChanged(Unity.Collections.FixedString32Bytes oldVal, Unity.Collections.FixedString32Bytes newVal)
+    {
+        if (!newVal.IsEmpty)
+        {
+            ApplyActiveRenderer(newVal.ToString());
+        }
+    }
+
+    private void HandleDirectionChanged(Vector2 oldVal, Vector2 newVal)
+    {
+        if (newVal != Vector2.zero)
+        {
+            ApplyDirection(newVal);
+        }
+    }
+
+    private IEnumerator ServerDespawnRoutine()
+    {
+        yield return new WaitForSeconds(duration);
+        if (NetworkObject != null && NetworkObject.IsSpawned)
+        {
+            NetworkObject.Despawn(true);
+        }
+    }
+
+    /// <summary> Visually activates only the matching piece of the explosion (start, middle, or end). </summary>
+    public void ApplyActiveRenderer(string renderer)
+    {
+        bool isStart = renderer == Constants.Animations.ExplosionStart;
+        bool isMiddle = renderer == Constants.Animations.ExplosionMiddle;
+        bool isEnd = renderer == Constants.Animations.ExplosionEnd;
+
+        if (start != null)
+        {
+            start.enabled = isStart;
+            if (start.TryGetComponent<SpriteRenderer>(out var sr))
+            {
+                sr.enabled = isStart;
+            }
+        }
+        if (middle != null)
+        {
+            middle.enabled = isMiddle;
+            if (middle.TryGetComponent<SpriteRenderer>(out var sr))
+            {
+                sr.enabled = isMiddle;
+            }
+        }
+        if (end != null)
+        {
+            end.enabled = isEnd;
+            if (end.TryGetComponent<SpriteRenderer>(out var sr))
+            {
+                sr.enabled = isEnd;
+            }
+        }
+    }
+
+    public void ApplyDirection(Vector2 direction)
+    {
+        if (direction == Vector2.zero) return;
+        float angle = Mathf.Atan2(direction.y, direction.x);
+        transform.rotation = Quaternion.AngleAxis(angle * Mathf.Rad2Deg, Vector3.forward);
+    }
+
+    /// <summary> RPC called by Bomb to visually activate only one of the three fire pieces. </summary>
     [Rpc(SendTo.ClientsAndHost)]
     public void SetActiveRendererRpc(string renderer)
     {
-        start.enabled = renderer == Constants.Animations.ExplosionStart;
-        middle.enabled = renderer == Constants.Animations.ExplosionMiddle;
-        end.enabled = renderer == Constants.Animations.ExplosionEnd;
+        if (IsServer)
+        {
+            networkRendererType.Value = renderer;
+        }
+        ApplyActiveRenderer(renderer);
     }
 
     /// <summary> 
@@ -32,17 +150,10 @@ public class Explosion : NetworkBehaviour
     [Rpc(SendTo.ClientsAndHost)]
     public void SetDirectionRpc(Vector2 direction)
     {
-        float angle = Mathf.Atan2(direction.y, direction.x);
-        transform.rotation = Quaternion.AngleAxis(angle * Mathf.Rad2Deg, Vector3.forward);
-    }
-
-    /// <summary> 
-    /// RPC that deletes the fire block from the map after the smoke clears.
-    /// (Uses Unity's default Destroy function because the explosion was instantiated without specific network ownership and needs to disappear universally)
-    /// </summary>
-    [Rpc(SendTo.ClientsAndHost)]
-    public void DestroyAfterRpc(float seconds)
-    {
-        Destroy(gameObject, seconds);
+        if (IsServer)
+        {
+            networkDirection.Value = direction;
+        }
+        ApplyDirection(direction);
     }
 }

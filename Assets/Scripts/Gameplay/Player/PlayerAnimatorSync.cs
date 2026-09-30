@@ -15,11 +15,13 @@ public class PlayerAnimatorSync : NetworkBehaviour
     
     // Stores the rendering script that is currently being used (e.g. Walk Down Animation)
     private AnimatedSpriteRenderer activeSpriteRenderer;
-    private Vector2 direction = Vector2.down;
+    private Vector2 lastFacingDirection = Vector2.down;
+    private Vector2 currentDirection = Vector2.zero;
     
     private void Awake()
     {
         activeSpriteRenderer = spriteRendererDown;
+        ApplyDirectionVisuals(Vector2.zero);
     }
 
     /// <summary>
@@ -27,10 +29,46 @@ public class PlayerAnimatorSync : NetworkBehaviour
     /// </summary>
     public void SetDirection(Vector2 newDirection)
     {
-        // Only sends to the network if the direction actually changed (Optimization)
-        if (direction == newDirection) return;
+        if (currentDirection == newDirection) return;
+        currentDirection = newDirection;
         
-        ChangeSpriteRpc(newDirection);
+        ApplyDirectionVisuals(newDirection);
+    }
+
+    public void ApplyDirectionVisuals(Vector2 newDirection)
+    {
+        currentDirection = newDirection;
+        bool isMoving = (newDirection != Vector2.zero);
+
+        if (newDirection == Vector2.up || newDirection == Vector2.down || 
+            newDirection == Vector2.left || newDirection == Vector2.right)
+        {
+            lastFacingDirection = newDirection;
+        }
+
+        AnimatedSpriteRenderer targetRenderer = spriteRendererDown;
+        if (lastFacingDirection == Vector2.up)
+            targetRenderer = spriteRendererUp;
+        else if (lastFacingDirection == Vector2.down)
+            targetRenderer = spriteRendererDown;
+        else if (lastFacingDirection == Vector2.left)
+            targetRenderer = spriteRendererLeft;
+        else if (lastFacingDirection == Vector2.right)
+            targetRenderer = spriteRendererRight;
+
+        // Turns off the rendering of animations that are not active in the corresponding direction
+        if (spriteRendererUp != null) spriteRendererUp.enabled = (targetRenderer == spriteRendererUp);
+        if (spriteRendererDown != null) spriteRendererDown.enabled = (targetRenderer == spriteRendererDown);
+        if (spriteRendererLeft != null) spriteRendererLeft.enabled = (targetRenderer == spriteRendererLeft);
+        if (spriteRendererRight != null) spriteRendererRight.enabled = (targetRenderer == spriteRendererRight);
+
+        activeSpriteRenderer = targetRenderer;
+        
+        // Activates the idle version of the character if the direction vector is (0, 0)
+        if (activeSpriteRenderer != null)
+        {
+            activeSpriteRenderer.idle = !isMoving;
+        }
     }
 
     /// <summary>
@@ -40,27 +78,6 @@ public class PlayerAnimatorSync : NetworkBehaviour
     [Rpc(SendTo.ClientsAndHost)]
     public void ChangeSpriteRpc(Vector2 newDirection)
     {
-        AnimatedSpriteRenderer spriteRenderer = activeSpriteRenderer;
-        direction = newDirection;
-
-            if (newDirection == Vector2.up)
-                spriteRenderer = spriteRendererUp;
-            else if (newDirection == Vector2.down)
-                spriteRenderer = spriteRendererDown;
-            else if (newDirection == Vector2.left)
-                spriteRenderer = spriteRendererLeft;
-            else if (newDirection == Vector2.right)
-                spriteRenderer = spriteRendererRight;
-
-            // Turns off the rendering of animations that are not active in the corresponding direction
-            spriteRendererUp.enabled = spriteRenderer == spriteRendererUp;
-            spriteRendererDown.enabled = spriteRenderer == spriteRendererDown;
-            spriteRendererLeft.enabled = spriteRenderer == spriteRendererLeft;
-            spriteRendererRight.enabled = spriteRenderer == spriteRendererRight;
-
-            activeSpriteRenderer = spriteRenderer;
-            
-            // Activates the idle version of the character if the direction vector is (0, 0)
-            activeSpriteRenderer.idle = direction == Vector2.zero;
+        ApplyDirectionVisuals(newDirection);
     }
 }

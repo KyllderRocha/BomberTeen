@@ -87,26 +87,39 @@ public class MenuManager : MonoBehaviour
         UpdatePanels();
     }
 
+    /// <summary> Called by GameManager when the player lost or drew. </summary>
+    public void GameOver()
+    {
+        activeMenu = Constants.Menus.GameOver;
+        UpdatePanels();
+    }
+
     public void ClickReturnToGame()
     {
-        AudioManager.instance.PlaySFX(Constants.Audio.Click);
+        if (AudioManager.instance != null) AudioManager.instance.PlaySFX(Constants.Audio.Click);
         activeMenu = "";
         UpdatePanels();
     }
+
+    /// <summary> Method bound to BackBtn/Minimize in GameScene.unity </summary>
+    public void Minimize() => ClickReturnToGame();
     
     public void ShowOptions()
     {
-        AudioManager.instance.PlaySFX(Constants.Audio.Click);
+        if (AudioManager.instance != null) AudioManager.instance.PlaySFX(Constants.Audio.Click);
         activeMenu = Constants.Menus.Options;
         UpdatePanels();
     }
 
     public void ClickReturnToMenu()
     {
-        AudioManager.instance.PlaySFX(Constants.Audio.Click);
-        BomberNetworkManager.instance.LeaveRoom();
+        if (AudioManager.instance != null) AudioManager.instance.PlaySFX(Constants.Audio.Click);
+        if (BomberNetworkManager.instance != null) BomberNetworkManager.instance.LeaveRoom();
         SceneManager.LoadScene(Constants.Menus.MainMenuScene);
     }
+
+    /// <summary> Method bound to MainMenuBtn in GameScene.unity </summary>
+    public void MainMenu() => ClickReturnToMenu();
 
     private void UpdatePanels()
     {

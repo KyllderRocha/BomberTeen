@@ -1223,7 +1223,7 @@ Transform:
   m_GameObject: {fileID: 641777786}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -378.06454, y: -248.83916, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1231,7 +1231,7 @@ Transform:
   - {fileID: 2105003591}
   - {fileID: 609422175}
   - {fileID: 297804435}
-  m_Father: {fileID: 1187621295}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &675932017
 GameObject:
@@ -1450,13 +1450,13 @@ Transform:
   m_GameObject: {fileID: 730870767}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -377.56454, y: -248.33916, z: 0}
+  m_LocalPosition: {x: 0.5, y: 0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1597538630}
   - {fileID: 1833999713}
-  m_Father: {fileID: 1187621295}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &730870770
 MonoBehaviour:
@@ -1488,8 +1488,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
   GlobalObjectIdHash: 1537083558
   InScenePlacedSourceGlobalObjectIdHash: 0
-  AlwaysReplicateAsRoot: 0
-  SynchronizeTransform: 1
+  AlwaysReplicateAsRoot: 1
+  SynchronizeTransform: 0
   ActiveSceneSynchronization: 0
   SceneMigrationSynchronization: 1
   SpawnWithObservers: 1
@@ -1873,6 +1873,7 @@ MonoBehaviour:
   animationTime: 0.16666667
   loop: 1
   idle: 0
+  _idle: 0
 --- !u!212 &949517058
 SpriteRenderer:
   serializedVersion: 2
@@ -2119,6 +2120,7 @@ MonoBehaviour:
   animationTime: 0.16666667
   loop: 1
   idle: 0
+  _idle: 0
 --- !u!212 &1036334757
 SpriteRenderer:
   serializedVersion: 2
@@ -2297,8 +2299,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 641777787}
-  - {fileID: 730870769}
   - {fileID: 1198559208}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -2785,6 +2785,7 @@ MonoBehaviour:
   animationTime: 0.16666667
   loop: 1
   idle: 0
+  _idle: 0
 --- !u!212 &1395623190
 SpriteRenderer:
   serializedVersion: 2
@@ -6651,6 +6652,7 @@ MonoBehaviour:
   animationTime: 0.16666667
   loop: 0
   idle: 0
+  _idle: 0
 --- !u!212 &1884010500
 SpriteRenderer:
   serializedVersion: 2
@@ -7330,6 +7332,7 @@ MonoBehaviour:
   animationTime: 0.16666667
   loop: 1
   idle: 0
+  _idle: 0
 --- !u!212 &2122951025
 SpriteRenderer:
   serializedVersion: 2

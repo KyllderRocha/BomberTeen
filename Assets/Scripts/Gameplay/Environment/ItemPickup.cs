@@ -22,60 +22,32 @@ public class ItemPickup : NetworkBehaviour
     public ItemType type;
     [SerializeField] private AudioSource audioGetItem;
 
-    /// <summary> Applies the bonus to the player and deletes the item from the screen. </summary>
-    private void OnItemPickup(GameObject player)
-    {
-        AudioManager.instance.PlaySFX("GetItem");
-
-        switch (type)
-        {
-            case ItemType.ExtraBomb:
-                player.GetComponent<BombController>().AddBomb(); // Increases the maximum amount of bombs
-                break;
-
-            case ItemType.BlastRadius:
-                player.GetComponent<BombController>().explosionRadius++; // Increases the size of the fire cross
-                break;
-
-            case ItemType.SpeedIncrease:
-                player.GetComponent<PlayerMovement>().speed++; // Makes the character faster
-                break;
-        }
-
-        // The destruction is now handled in the RPC directly
-        // Destroy(gameObject);
-    }
+    private bool collected = false;
 
     /// <summary> Identifies the collision (trigger) with a body that has the 'Player' tag. </summary>
     private void OnTriggerEnter2D(Collider2D other)
     {
         // Server Authority: Somente o Servidor decide quem tocou no item primeiro
-        if (!IsServer) return;
+        if (!IsServer || collected) return;
 
         if (other.CompareTag(Constants.Tags.Player))
         {
-            NetworkObject playerNo = other.GetComponent<NetworkObject>();
-            if (playerNo != null)
+            var playerStatus = other.GetComponent<PlayerStatus>();
+            if (playerStatus != null && !playerStatus.isDead)
             {
-                // Dispara o RPC para todos os computadores aplicarem o buff no jogador específico
-                ApplyItemRpc(playerNo.NetworkObjectId);
+                collected = true;
+                playerStatus.CollectItemRpc(type);
+
+                if (NetworkObject != null && NetworkObject.IsSpawned)
+                {
+                    NetworkObject.Despawn(true);
+                }
             }
         }
     }
 
-    [Rpc(SendTo.ClientsAndHost)]
-    private void ApplyItemRpc(ulong playerNetworkObjectId)
+    private void OnTriggerStay2D(Collider2D other)
     {
-        // Encontra o jogador na rede usando o ID único dele
-        if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(playerNetworkObjectId, out NetworkObject playerNo))
-        {
-            OnItemPickup(playerNo.gameObject); // Aplica o buff visual e lógico
-        }
-        
-        // Apenas o MasterClient remove o objeto de forma sincronizada da rede
-        if (IsServer && gameObject != null)
-        {
-            GetComponent<NetworkObject>().Despawn();
-        }
+        OnTriggerEnter2D(other);
     }
 }

@@ -17,7 +17,7 @@ namespace BomberTeen
             public const string Win = "Win";
             
             // For SceneManager
-            public const string MainMenuScene = "MenuInicial";
+            public const string MainMenuScene = "InitialScene";
         }
 
         public struct Audio

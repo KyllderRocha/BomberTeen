@@ -17,7 +17,13 @@ public class PlayerNetworkManager : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         id = OwnerClientId;
-        GameManager.instance.players.Add(this);
+        if (GameManager.instance != null && GameManager.instance.players != null)
+        {
+            if (!GameManager.instance.players.Contains(this))
+            {
+                GameManager.instance.players.Add(this);
+            }
+        }
     }
 
     public override void OnNetworkDespawn()

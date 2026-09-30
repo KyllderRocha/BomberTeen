@@ -180,6 +180,7 @@ MonoBehaviour:
   animationTime: 0.25
   loop: 1
   idle: 0
+  _idle: 0
 --- !u!114 &6798141062805111724
 MonoBehaviour:
   m_ObjectHideFlags: 0

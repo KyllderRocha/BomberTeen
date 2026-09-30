@@ -113,6 +113,7 @@ MonoBehaviour:
   animationTime: 0.16666667
   loop: 1
   idle: 0
+  _idle: 0
 --- !u!1 &5251112671239023579
 GameObject:
   m_ObjectHideFlags: 0
@@ -454,6 +455,7 @@ MonoBehaviour:
   animationTime: 0.16666667
   loop: 1
   idle: 0
+  _idle: 0
 --- !u!1 &5251112672125570275
 GameObject:
   m_ObjectHideFlags: 0
@@ -567,6 +569,7 @@ MonoBehaviour:
   animationTime: 0.16666667
   loop: 1
   idle: 0
+  _idle: 0
 --- !u!1 &5251112672204388633
 GameObject:
   m_ObjectHideFlags: 0
@@ -682,6 +685,7 @@ MonoBehaviour:
   animationTime: 0.16666667
   loop: 0
   idle: 0
+  _idle: 0
 --- !u!1 &5251112672588944434
 GameObject:
   m_ObjectHideFlags: 0
@@ -795,3 +799,4 @@ MonoBehaviour:
   animationTime: 0.16666667
   loop: 1
   idle: 0
+  _idle: 0

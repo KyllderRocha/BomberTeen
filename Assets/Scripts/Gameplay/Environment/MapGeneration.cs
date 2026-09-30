@@ -27,10 +27,18 @@ public class MapGeneration : NetworkBehaviour
     [Header("Indestructible")]
     public Tilemap indestructibleTiles;
 
+    // Deterministic seed synchronized automatically by Netcode to all clients
+    private readonly NetworkVariable<int> mapSeed = new NetworkVariable<int>(
+        0,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    private bool hasGenerated = false;
+
     private void Awake()
     {
-        // Singleton Pattern for easy access from anywhere (like the Bomb warning it hit the wall)
-        if (instance != null & instance != this)
+        if (instance != null && instance != this)
         {
             gameObject.SetActive(false);
             return;
@@ -40,43 +48,110 @@ public class MapGeneration : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        // Security: The entire map is only generated on the "Host" machine.
-        // It will decide where the walls are and send the Blueprint via RPC to the others.
+        mapSeed.OnValueChanged += OnSeedChanged;
+
         if (IsServer)
         {
-            Vector3Int cell = destructibleTiles.origin;
-            TileBase tile = null;
-            TileBase tileIndes = null;
-            Debug.Log(cell);
+            // Pick a non-zero deterministic random seed
+            mapSeed.Value = Random.Range(1, 1000000);
+            GenerateMap(mapSeed.Value);
+        }
+        else if (mapSeed.Value != 0 && !hasGenerated)
+        {
+            GenerateMap(mapSeed.Value);
+        }
+    }
 
-            // Scans the entire visual matrix of the map (row by row, column by column)
-            for (int y = 0; y < destructibleTiles.size.y; y++)
+    public override void OnNetworkDespawn()
+    {
+        mapSeed.OnValueChanged -= OnSeedChanged;
+        hasGenerated = false;
+    }
+
+    private void OnSeedChanged(int oldVal, int newVal)
+    {
+        if (newVal != 0 && (!hasGenerated || newVal != oldVal))
+        {
+            GenerateMap(newVal);
+        }
+    }
+
+    private void GenerateMap(int seed)
+    {
+        if (destructibleTiles == null || indestructibleTiles == null) return;
+        hasGenerated = true;
+
+        var rng = new System.Random(seed);
+        destructibleTiles.ClearAllTiles();
+
+        BoundsInt bounds = indestructibleTiles.cellBounds;
+        int blocksSpawned = 0;
+
+        for (int y = bounds.yMin; y < bounds.yMax; y++)
+        {
+            for (int x = bounds.xMin; x < bounds.xMax; x++)
             {
-                cell.x = destructibleTiles.origin.x;
+                Vector3Int cell = new Vector3Int(x, y, 0);
 
-                for (int x = 0; x < destructibleTiles.size.x; x++)
+                TileBase tileIndes = indestructibleTiles.GetTile(cell);
+                bool isIndestructibleBlock = tileIndes != null && tileIndes.name.StartsWith("Block", System.StringComparison.OrdinalIgnoreCase);
+
+                // Destructible blocks only spawn on walkable ground (not on indestructible walls/pillars)
+                if (!isIndestructibleBlock && tileIndes != null)
                 {
-                    tile = destructibleTiles.GetTile(cell);
-                    tileIndes = indestructibleTiles.GetTile(cell);
-
-                    // If the cell is empty and it's not an armored iron wall...
-                    if (tile == null && tileIndes.name != "Block")
+                    if (rng.NextDouble() < 0.75)
                     {
-                        // 75% chance to spawn a destructible box in this hole
-                        if (Random.value < 0.75f)
-                        {
-                            // Sends the order to everyone: Place the "Brick" art at X and Y
-                            SetDestructibleTileRpc(cell.x, cell.y, "Brick");
-                        }
-                    }else if(tile != null)
-                    {
-                        // If there was an improper wall, ensures the entire network clears it
-                        SetDestructibleTileRpc(cell.x, cell.y, "");
+                        destructibleTiles.SetTile(cell, tileBrick);
+                        blocksSpawned++;
                     }
-                    cell.x += 1;
                 }
-                cell.y += 1;
             }
+        }
+
+        ClearSpawnAreas();
+        Debug.Log($"[MapGeneration] Mapa gerado com seed {seed}. {blocksSpawned} blocos destrutíveis criados na arena.");
+    }
+
+    private void ClearSpawnAreas()
+    {
+        if (destructibleTiles == null) return;
+
+        List<Vector3> spawnPositions = new List<Vector3>();
+
+        if (GameManager.instance != null && GameManager.instance.GetSpawns() != null && GameManager.instance.GetSpawns().Length > 0)
+        {
+            foreach (var spawn in GameManager.instance.GetSpawns())
+            {
+                if (spawn != null)
+                {
+                    spawnPositions.Add(spawn.position);
+                }
+            }
+        }
+        else
+        {
+            var spawnsObj = GameObject.Find("Spawns");
+            if (spawnsObj != null)
+            {
+                foreach (Transform child in spawnsObj.transform)
+                {
+                    if (child != null)
+                    {
+                        spawnPositions.Add(child.position);
+                    }
+                }
+            }
+        }
+
+        // Clear tiles around each spawn corner so players can maneuver and plant bombs safely
+        foreach (var pos in spawnPositions)
+        {
+            Vector3Int centerCell = destructibleTiles.WorldToCell(pos);
+            destructibleTiles.SetTile(centerCell, null);
+            destructibleTiles.SetTile(centerCell + Vector3Int.up, null);
+            destructibleTiles.SetTile(centerCell + Vector3Int.down, null);
+            destructibleTiles.SetTile(centerCell + Vector3Int.left, null);
+            destructibleTiles.SetTile(centerCell + Vector3Int.right, null);
         }
     }
 
@@ -87,9 +162,11 @@ public class MapGeneration : NetworkBehaviour
     [Rpc(SendTo.ClientsAndHost)]
     public void SetDestructibleTileRpc(int x, int y, string tileText)
     {
-        Vector3Int cell = new Vector3Int(x, y);
+        if (destructibleTiles == null) return;
+
+        Vector3Int cell = new Vector3Int(x, y, 0);
         TileBase tile = null;
-        if(tileText == "Brick")
+        if (tileText == "Brick")
         {
             tile = tileBrick;
         }
@@ -97,29 +174,28 @@ public class MapGeneration : NetworkBehaviour
     }
 
     /// <summary>
-    /// Called by the BombController (from the host's machine) informing that the fire hit a box.
-    /// Erases the solid block (Tile) and spawns the animated dust model (Destructible) in its place.
+    /// Called by the Bomb (on the server) informing that fire hit a destructible box.
+    /// Erases the solid block (Tile) and spawns the animated debris model in its place.
     /// </summary>
     [Rpc(SendTo.Server)]
-    public void DestructibleRpc(float x, float y)
+    public void DestructibleRpc(float worldX, float worldY)
     {
-        // Tilemap offset correction
-        x -= 1;
-        y -= 1;
-        Vector3Int cell = new Vector3Int((int) x, (int) y);
+        if (destructibleTiles == null) return;
+
+        Vector3 worldPos = new Vector3(worldX, worldY, 0f);
+        Vector3Int cell = destructibleTiles.WorldToCell(worldPos);
         TileBase tile = destructibleTiles.GetTile(cell);
         
         if (tile != null)
         {
-            // Tells everyone to remove the visual and solid "wall" (Tile)
+            // Remove the tile across all clients and host
             SetDestructibleTileRpc(cell.x, cell.y, "");
 
-            Vector3Int cellDestructible = new Vector3Int((int)x +1, (int) y +1);
-            
-            // Physically instantiates the 2D dust animation object via Photon, which will drop the item later
+            // Spawn the 2D debris animation on the server
             if (destructiblePrefabNetwork != null)
             {
-                var destructibleObj = Instantiate(destructiblePrefabNetwork, cellDestructible, Quaternion.identity);
+                Vector3 cellCenter = destructibleTiles.GetCellCenterWorld(cell);
+                var destructibleObj = Instantiate(destructiblePrefabNetwork, cellCenter, Quaternion.identity);
                 var netObj = destructibleObj.GetComponent<NetworkObject>();
                 
                 if (netObj != null)
@@ -128,7 +204,7 @@ public class MapGeneration : NetworkBehaviour
                 }
                 else
                 {
-                    Debug.LogError("[MapGeneration] O Prefab configurado no 'Destructible Prefab Network' não possui um componente NetworkObject! O jogo não pode instanciá-lo na rede.");
+                    Debug.LogError("[MapGeneration] O Prefab configurado no 'Destructible Prefab Network' não possui um componente NetworkObject!");
                 }
             }
         }

@@ -30,7 +30,14 @@ public class Destructible : NetworkBehaviour
 
     private IEnumerator DespawnRoutine()
     {
-        yield return new WaitForSeconds(destructionTime);
+        var animRenderer = GetComponent<AnimatedSpriteRenderer>();
+        float waitTime = destructionTime;
+        if (animRenderer != null && animRenderer.animationSprites != null && animRenderer.animationSprites.Length > 0)
+        {
+            waitTime = animRenderer.animationSprites.Length * animRenderer.animationTime;
+        }
+
+        yield return new WaitForSeconds(waitTime);
 
         if (spawnableItemsNetwork == null || spawnableItemsNetwork.Length == 0)
         {
@@ -60,7 +67,7 @@ public class Destructible : NetworkBehaviour
         }
 
         // Host despawns the block safely
-        if (GetComponent<NetworkObject>() != null)
-            GetComponent<NetworkObject>().Despawn();
+        if (NetworkObject != null && NetworkObject.IsSpawned)
+            NetworkObject.Despawn(true);
     }
 }

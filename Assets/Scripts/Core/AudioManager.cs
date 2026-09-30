@@ -28,6 +28,10 @@ public class AudioManager : MonoBehaviour
         if (instance == null)
         {
             instance = this; 
+            if (transform.parent != null)
+            {
+                transform.SetParent(null);
+            }
             DontDestroyOnLoad(gameObject); // Audio will not be cut when changing screens (e.g. returning to Menu)
 
             // Attempts to retrieve the volume settings previously saved by the player on the HD (PlayerPrefs)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BomberTeen;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /*
  * GAME MANAGER
@@ -22,12 +23,16 @@ public class GameManager : NetworkBehaviour
     [Tooltip("List of predefined locations on the map where players will spawn.")]
     [SerializeField] private Transform[] spawns;
 
+    public Transform[] GetSpawns() => spawns;
+
     // Official list of initialized and connected player scripts.
     private List<PlayerNetworkManager> _players;
     public List<PlayerNetworkManager> players { get => _players; set => _players = value; }
     
     private int playersInGame = 0;
-    private KeyCode inputKey = KeyCode.Escape;
+    private int maxPlayersInMatch = 0;
+    private bool gameEnded = false;
+    private readonly HashSet<ulong> spawnedClients = new HashSet<ulong>();
 
     private void Awake()
     {
@@ -46,15 +51,16 @@ public class GameManager : NetworkBehaviour
 
         if (IsServer)
         {
-            // Spawn players that are already connected (Host + early clients)
-            foreach (var clientId in NetworkManager.Singleton.ConnectedClientsIds)
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
             {
-                CreatePlayer(clientId);
+                NetworkManager.Singleton.SceneManager.OnLoadEventCompleted += HandleSceneLoadCompleted;
+                NetworkManager.Singleton.SceneManager.OnSynchronizeComplete += HandleClientSynchronized;
             }
-            
-            // Listen for future clients connecting
-            NetworkManager.Singleton.OnClientConnectedCallback += CreatePlayer;
+
             NetworkManager.Singleton.OnClientDisconnectCallback += HandlePlayerDisconnect;
+
+            // Fallback for editor PlayMode testing (where SceneManager.LoadScene was not called)
+            StartCoroutine(SpawnInitialPlayersFallback());
         }
     }
 
@@ -64,33 +70,88 @@ public class GameManager : NetworkBehaviour
 
         if (IsServer && NetworkManager.Singleton != null)
         {
-            NetworkManager.Singleton.OnClientConnectedCallback -= CreatePlayer;
+            if (NetworkManager.Singleton.SceneManager != null)
+            {
+                NetworkManager.Singleton.SceneManager.OnLoadEventCompleted -= HandleSceneLoadCompleted;
+                NetworkManager.Singleton.SceneManager.OnSynchronizeComplete -= HandleClientSynchronized;
+            }
+
             NetworkManager.Singleton.OnClientDisconnectCallback -= HandlePlayerDisconnect;
+        }
+    }
+
+    private void HandleSceneLoadCompleted(string sceneName, LoadSceneMode loadSceneMode, List<ulong> clientsCompleted, List<ulong> clientsTimedOut)
+    {
+        if (!IsServer) return;
+        Debug.Log($"[GameManager] OnLoadEventCompleted para cena '{sceneName}'. Clientes: {string.Join(", ", clientsCompleted)}");
+
+        foreach (var clientId in clientsCompleted)
+        {
+            CreatePlayer(clientId);
+        }
+    }
+
+    private void HandleClientSynchronized(ulong clientId)
+    {
+        if (!IsServer) return;
+        Debug.Log($"[GameManager] OnSynchronizeComplete para ClientId: {clientId}");
+        CreatePlayer(clientId);
+    }
+
+    private System.Collections.IEnumerator SpawnInitialPlayersFallback()
+    {
+        // Aguarda meio segundo caso a transição via SceneManager já esteja gerenciando o spawn
+        yield return new WaitForSeconds(0.5f);
+
+        if (IsServer && NetworkManager.Singleton != null)
+        {
+            foreach (var clientId in NetworkManager.Singleton.ConnectedClientsIds)
+            {
+                CreatePlayer(clientId);
+            }
         }
     }
 
     private void HandlePlayerDeath(PlayerStatus deadPlayer)
     {
-        CheckWinState();
-    }
-
-    private void Update()
-    {
-        // If the key is pressed, opens the options menu.
-        if (Input.GetKeyDown(inputKey))
+        if (IsServer)
         {
-            // O MenuManager antigo cuidava disso. (Deixamos como estava)
+            CheckWinState();
         }
     }
 
     public void CheckWinState()
     {
-        // Searches the list for all players whose GameObject is still active and enabled.
-        int aliveCount = players.Where(x => x.isActiveAndEnabled).Count();
+        if (!IsServer || gameEnded) return;
 
-        if (aliveCount <= 1 && players.Count > 1) // Garante que a partida tinha mais de 1 antes de dar vitória instantanea
+        maxPlayersInMatch = Mathf.Max(maxPlayersInMatch, players.Count);
+
+        // Count how many players are still alive
+        var alivePlayers = players.Where(p => p != null && p.GetComponent<PlayerStatus>() != null && !p.GetComponent<PlayerStatus>().isDead).ToList();
+
+        // Only evaluate victory if the match started with more than 1 player
+        if (maxPlayersInMatch > 1 && alivePlayers.Count <= 1)
+        {
+            gameEnded = true;
+            ulong winnerClientId = alivePlayers.Count == 1 ? alivePlayers[0].OwnerClientId : ulong.MaxValue;
+            AnnounceGameResultRpc(winnerClientId);
+        }
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void AnnounceGameResultRpc(ulong winnerClientId)
+    {
+        if (MenuManager.instance == null || NetworkManager.Singleton == null) return;
+
+        ulong localId = NetworkManager.Singleton.LocalClientId;
+
+        if (winnerClientId != ulong.MaxValue && winnerClientId == localId)
         {
             MenuManager.instance.WinGame();
+        }
+        else
+        {
+            MenuManager.instance.GameOver();
         }
     }
 
@@ -100,23 +161,35 @@ public class GameManager : NetworkBehaviour
     /// </summary>
     private void CreatePlayer(ulong clientId)
     {
-        Transform spawn = transform; // Fallback para a própria posição do GameManager se esquecerem de configurar
+        if (spawnedClients.Contains(clientId)) return;
+
+        // Avoid spawning duplicate player objects if already present
+        if (NetworkManager.Singleton != null && 
+            NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var client) && 
+            client.PlayerObject != null)
+        {
+            spawnedClients.Add(clientId);
+            return;
+        }
+
+        Transform spawn = transform;
         if (spawns != null && spawns.Length > 0)
         {
             spawn = spawns[playersInGame % spawns.Length];
         }
         
         playersInGame++;
+        spawnedClients.Add(clientId);
         
-        // Instantiates the player's avatar on the network so everyone can see it.
         var playerObj = Instantiate(playerPrefabNetwork, spawn.position, Quaternion.identity);
-        
-        // Spawns with ownership assigned to the specific client
         playerObj.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
     }
     
     private void HandlePlayerDisconnect(ulong clientId)
     {
-        CheckWinState();
+        if (IsServer)
+        {
+            CheckWinState();
+        }
     }
 }

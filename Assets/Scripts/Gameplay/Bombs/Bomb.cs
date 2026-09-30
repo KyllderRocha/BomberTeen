@@ -1,78 +1,219 @@
 using UnityEngine;
 using Unity.Netcode;
+using System.Collections;
 using BomberTeen;
 
 /// <summary>
 /// Script attached to the Bomb Prefab.
-/// Unlike BombController (which is on the Player and handles the act of planting the bomb), 
-/// this script deals only with the bomb itself, triggering early detonation 
-/// if it is hit by another explosion (Chain Reaction).
+/// Manages the bomb's fuse timer on the server, early detonation on chain reactions,
+/// shooting explosion rays, and despawning cleanly over Netcode.
 /// </summary>
 public class Bomb : NetworkBehaviour
 {
-    /// <summary> PhotonView ID of the player who planted this bomb (to refund). </summary>
-    public ulong ownerViewID;
-    
-    /// <summary> Flag read by the player's BombController to know if the fuse timer should be interrupted. </summary>
+    public ulong ownerClientId;
+    public int explosionRadius = 1;
+    public float bombFuseTime = 3.0f;
+    public float explosionDuration = 1.0f;
+    public LayerMask explosionLayerMask;
+    public GameObject explosionPrefabNetwork;
+
     public bool shouldExplode = false;
-    
-    // Safety lock to prevent multiple explosion triggers from firing repeatedly.
     private bool exploded = false;
-	
-    // MEMORY CACHE (Prevents garbage allocation/Garbage Collector in Update)
-	private Collider2D[] results = new Collider2D[10]; 
+
+    private Collider2D[] results = new Collider2D[10];
     private ContactFilter2D filter;
+    private Collider2D bombCollider;
 
     private void Awake()
     {
-        // Prepares the collision filter once at initialization
         filter = new ContactFilter2D();
         filter.useTriggers = true;
+        bombCollider = GetComponent<Collider2D>();
     }
 
     private void Start()
     {
-        // Toca o som localmente em todas as telas quando a bomba nasce na rede
         if (AudioManager.instance != null)
         {
             AudioManager.instance.PlaySFX(Constants.Audio.Drop);
         }
     }
 
+    public override void OnNetworkSpawn()
+    {
+        if (IsServer)
+        {
+            StartCoroutine(ServerFuseRoutine());
+        }
+    }
+
+    private IEnumerator ServerFuseRoutine()
+    {
+        float timer = bombFuseTime;
+        while (timer > 0 && !exploded && !shouldExplode)
+        {
+            timer -= Time.deltaTime;
+            yield return null;
+        }
+
+        Detonate();
+    }
+
     void Update()
     {
-        // Server Authority: Somente o MasterClient monitora colisão com fogo
         if (exploded || !IsServer) return;
 
-        // Throws a "virtual box" over the bomb and collects everything it touched using the pre-allocated cache.
         int count = Physics2D.OverlapBox(transform.position, Vector2.one / 2f, 0f, filter, results);
-        
         for (int i = 0; i < count; i++)
         {
             Collider2D hit = results[i];
-            
-            // If the item that touched the bomb is fire from a neighboring explosion...
-            if (hit.GetComponentInParent<Explosion>() != null)
+            if (hit != null && hit.GetComponentInParent<Explosion>() != null)
             {
-                Debug.Log($"[Bomb] Detected an explosion at position {transform.position}! Sending RPC to explode...");
-                // Dispara o comando apenas para o MasterClient (que já está executando, mas mantém a arquitetura limpa)
                 TriggerExplosionRpc();
                 break;
             }
         }
     }
 
-    /// <summary>
-    /// Forces the bomb detonation over the network. Called when a chain reaction occurs.
-    /// Changes the flag so the owner's BombController notices the interruption.
-    /// </summary>
     [Rpc(SendTo.ClientsAndHost)]
     public void TriggerExplosionRpc()
     {
-        Debug.Log($"[Bomb] RPC TriggerExplosion received!");
-        if (exploded) return; // Prevents infinite loop in case two bombs try to explode at the same time
-        exploded = true;
+        if (exploded) return;
         shouldExplode = true;
-        Debug.Log($"[Bomb] shouldExplode set to true! Waiting for BombController.");
+        if (IsServer)
+        {
+            Detonate();
+        }
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    public void SetSolidRpc()
+    {
+        if (bombCollider != null)
+        {
+            bombCollider.isTrigger = false;
+        }
+    }
+
+    private void Detonate()
+    {
+        if (exploded || !IsServer) return;
+        exploded = true;
+
+        Vector2 position = transform.position;
+        position.x = Mathf.Round(position.x);
+        position.y = Mathf.Round(position.y);
+
+        ExecuteExplosion(position);
+
+        RefundPlanterBomb();
+
+        if (NetworkObject != null && NetworkObject.IsSpawned)
+        {
+            NetworkObject.Despawn(true);
+        }
+    }
+
+    private void RefundPlanterBomb()
+    {
+        if (NetworkManager.Singleton == null) return;
+
+        if (NetworkManager.Singleton.ConnectedClients.TryGetValue(ownerClientId, out var client))
+        {
+            if (client.PlayerObject != null)
+            {
+                var bombController = client.PlayerObject.GetComponent<BombController>();
+                if (bombController != null)
+                {
+                    bombController.RefundBombRpc();
+                }
+            }
+        }
+    }
+
+    private void ExecuteExplosion(Vector2 position)
+    {
+        if (explosionPrefabNetwork == null) return;
+
+        // Central explosion fire
+        SpawnExplosionTile(position, Constants.Animations.ExplosionStart, Vector2.zero);
+
+        // Fire rays in 4 directions
+        ExplodeRay(position, Vector2.up, explosionRadius);
+        ExplodeRay(position, Vector2.down, explosionRadius);
+        ExplodeRay(position, Vector2.left, explosionRadius);
+        ExplodeRay(position, Vector2.right, explosionRadius);
+    }
+
+    private void ExplodeRay(Vector2 position, Vector2 direction, int length)
+    {
+        if (length <= 0) return;
+
+        position += direction;
+        Collider2D[] hits = Physics2D.OverlapBoxAll(position, Vector2.one / 2f, 0f);
+        bool stopped = false;
+
+        foreach (Collider2D hit in hits)
+        {
+            if (hit == null) continue;
+
+            Bomb hitBomb = hit.GetComponentInParent<Bomb>();
+            ItemPickup item = hit.GetComponentInParent<ItemPickup>();
+
+            if (hitBomb != null && hitBomb != this)
+            {
+                hitBomb.TriggerExplosionRpc();
+                stopped = true;
+            }
+            else if (item != null)
+            {
+                if (IsServer && item.NetworkObject != null && item.NetworkObject.IsSpawned)
+                {
+                    item.NetworkObject.Despawn(true);
+                }
+            }
+            else if (explosionLayerMask == (explosionLayerMask | (1 << hit.gameObject.layer)))
+            {
+                if (MapGeneration.instance != null)
+                {
+                    MapGeneration.instance.DestructibleRpc(position.x, position.y);
+                }
+                stopped = true;
+            }
+        }
+
+        if (stopped) return;
+
+        string rendererType = length > 1 ? Constants.Animations.ExplosionMiddle : Constants.Animations.ExplosionEnd;
+        SpawnExplosionTile(position, rendererType, direction);
+
+        ExplodeRay(position, direction, length - 1);
+    }
+
+    private void SpawnExplosionTile(Vector2 position, string rendererType, Vector2 direction)
+    {
+        Quaternion rotation = Quaternion.identity;
+        if (direction != Vector2.zero)
+        {
+            float angle = Mathf.Atan2(direction.y, direction.x);
+            rotation = Quaternion.AngleAxis(angle * Mathf.Rad2Deg, Vector3.forward);
+        }
+
+        var explosionObj = Instantiate(explosionPrefabNetwork, position, rotation);
+        var netObj = explosionObj.GetComponent<NetworkObject>();
+        if (netObj != null)
+        {
+            netObj.Spawn(true);
+        }
+
+        var explosion = explosionObj.GetComponent<Explosion>();
+        if (explosion != null)
+        {
+            explosion.SetActiveRendererRpc(rendererType);
+            if (direction != Vector2.zero)
+            {
+                explosion.SetDirectionRpc(direction);
+            }
+        }
     }
 }
